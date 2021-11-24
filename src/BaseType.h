@@ -2,6 +2,7 @@
 #define PYTHON_INTERPRETER_BASETYPE_H
 
 #include <string>
+#include <iostream>
 #include "BigInteger.h"
 using std::string;
 
@@ -87,6 +88,13 @@ public:
     friend bool operator>=(const BaseType &lhs, const BaseType &rhs) { return !(lhs < rhs); }
     friend bool operator==(const BaseType &lhs, const BaseType &rhs) { return lhs <= rhs && rhs <= lhs; }
     friend bool operator!=(const BaseType &lhs, const BaseType &rhs) { return lhs < rhs || rhs < lhs; }
+    void print(char ch = 0) {
+        if (t == 1) printf(b ? "True" : "False");
+        if (t == 2) std::cout << i;
+        if (t == 3) printf("%.6lf", d);
+        if (t == 4) std::cout << s;
+        if (ch) putchar(ch);
+    }
 };
 
 #endif

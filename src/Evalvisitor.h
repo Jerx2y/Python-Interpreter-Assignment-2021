@@ -2,12 +2,17 @@
 #define PYTHON_INTERPRETER_EVALVISITOR_H
 
 
+#include <vector>
 #include "Python3BaseVisitor.h"
 #include "Scope.h"
 #include "Exception.h"
 #include "utils.h"
 #include "BaseType.h"
 
+#include <iostream>
+using std::cin;
+using std::cout;
+using std::endl;
 
 class EvalVisitor: public Python3BaseVisitor {
 
@@ -50,6 +55,7 @@ class EvalVisitor: public Python3BaseVisitor {
             // TODO;
             return 0;
         }
+
         auto testlistArray = ctx->testlist();
         int arraySize = testlistArray.size(); // ! , TODO
 
@@ -196,26 +202,57 @@ class EvalVisitor: public Python3BaseVisitor {
     }
 
     virtual antlrcpp::Any visitFactor(Python3Parser::FactorContext *ctx) override {
-        auto a = ctx->atom_expr();
-        if (a) return visitAtom_expr(a);
+        auto atomExpr = ctx->atom_expr();
+        if (atomExpr) return visitAtom_expr(atomExpr);
         if (ctx->getText() == "+") return visitFactor(ctx->factor());
         else return BaseType(-visitFactor(ctx->factor()).as<BaseType>());
     }
 
     virtual antlrcpp::Any visitAtom_expr(Python3Parser::Atom_exprContext *ctx) override {
-        auto t = ctx->trailer();
-        if (t) ; // TODO; Function
-        else return visitAtom(ctx->atom());
+        auto trailer = ctx->trailer();
+        if (!trailer) return visitAtom(ctx->atom());
+        auto functionName = ctx->atom()->getText();
+        auto argsArray = visitTrailer(ctx->trailer()).as<std::vector<BaseType>>();
+        if (functionName == "print") {
+            for (auto i : argsArray) 
+                i.print(' ');
+            puts("");
+            return BaseType();
+        }
+        // TODO
     }
 
     virtual antlrcpp::Any visitTrailer(Python3Parser::TrailerContext *ctx) override {
-        // TODO function 
-        return visitChildren(ctx);
+        if (ctx->arglist()) return visit(ctx->arglist());
+        std::vector<BaseType> res;
+        res.clear();
+        return res;
+    }
+
+    std::pair<bool, double> stringToDouble(const string &number) {
+        int idx = -1, sz = number.size();
+        for (int i = 0; i < sz; ++i)
+            if (number[i] == '.') idx = i;
+        if (idx == -1) return std::make_pair(false, 0);
+        double res = 0;
+        for (int i = idx - 1; i >= 0; --i)
+            res = res * 10 + number[i] - '0';
+
+        double tmp = 0.1;
+        for (int i = idx + 1; i < sz; ++i) {
+            res += tmp * (number[i] - '0');
+            tmp /= 10.0;
+        }
+
+        return std::make_pair(true, res);
     }
 
     virtual antlrcpp::Any visitAtom(Python3Parser::AtomContext *ctx) override {
         if (ctx->NUMBER()) {
-            return BaseType(int2048(ctx->NUMBER()->getText()));
+            std::string number = ctx->NUMBER()->getText();
+            std::pair<bool, double> tmp = stringToDouble(number);
+            if (tmp.first) return BaseType(tmp.second);
+            return BaseType(int2048(number));
         } else if (ctx->NAME()) {
             auto result = scope.varQuery(ctx->NAME()->getText());
             if (result.first) return result.second;
@@ -227,8 +264,12 @@ class EvalVisitor: public Python3BaseVisitor {
             auto s = ctx->STRING();
             string res;
             res.clear();
-            for (auto t : s)
-                res += t->getText();
+            for (auto t : s) {
+                string tmp = t->getText();
+                for (int i = 1, sz = tmp.size(); i < sz - 1; ++i)
+                    res += tmp[i];
+            }
+                
             return BaseType(res);
         }
     }
@@ -238,11 +279,22 @@ class EvalVisitor: public Python3BaseVisitor {
     }
 
     virtual antlrcpp::Any visitArglist(Python3Parser::ArglistContext *ctx) override {
-        return visitChildren(ctx);
+        std::vector<BaseType> res;
+        res.clear();
+        auto arg = ctx->argument();
+        for (auto x : arg)
+            res.push_back(visitArgument(x).as<BaseType>());
+        return res;
     }
 
     virtual antlrcpp::Any visitArgument(Python3Parser::ArgumentContext *ctx) override {
-        return visitChildren(ctx);
+        auto test = ctx->test();
+        if (test.size() == 1)
+            return visitTest(test[0]);
+        BaseType varData = visitTest(test[1]);
+        string varName = test[0]->getText();
+        scope.varRegister(varName, varData);
+        return varData;
     }
 
 };
