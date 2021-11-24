@@ -46,8 +46,21 @@ class EvalVisitor: public Python3BaseVisitor {
     }
 
     virtual antlrcpp::Any visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) override {
-        // TODO: exprSTMT
-        return visitChildren(ctx);
+        if (ctx->augassign()) {
+            // TODO;
+            return 0;
+        }
+        auto testlistArray = ctx->testlist();
+        int arraySize = testlistArray.size(); // ! , TODO
+
+        BaseType varData = visitTestlist(testlistArray[arraySize - 1]);
+
+        for (int i = 0; i < arraySize - 1; ++i) {
+            std::string varName = testlistArray[i]->getText();
+            scope.varRegister(varName, varData);
+        }
+
+        return 0;
     }
 
     virtual antlrcpp::Any visitAugassign(Python3Parser::AugassignContext *ctx) override {
@@ -96,7 +109,7 @@ class EvalVisitor: public Python3BaseVisitor {
             return visitAnd_test(tmp[0]);
         for (auto x : tmp)
             if ((bool) visitAnd_test(x))
-                return true;
+                return BaseType(true);
         return BaseType(false);
     }
 
@@ -106,23 +119,22 @@ class EvalVisitor: public Python3BaseVisitor {
             return visitNot_test(tmp[0]);
         for (auto x : tmp)
             if (! (bool) visitNot_test(x)) 
-                return false;
+                return BaseType(false);
         return BaseType(true);
     }
 
     virtual antlrcpp::Any visitNot_test(Python3Parser::Not_testContext *ctx) override {
-        if (ctx->NOT()) return BaseType(!(bool)visitNot_test(ctx->not_test()));
+        if (ctx->NOT()) return BaseType(!(bool)visitNot_test(ctx->not_test()).as<BaseType>());
         else return visitComparison(ctx->comparison());
     }
 
-    bool mycmp(const BaseType &lhs, const BaseType &rhs, const BaseType &opt) {
-        string o = (string) opt;
-        if (o == "<") return lhs < rhs;
-        if (o == ">") return lhs > rhs;
-        if (o == "==") return lhs == rhs;
-        if (o == ">=") return lhs >= rhs;
-        if (o == "<=") return lhs <= rhs;
-        if (o == "!=") return lhs != rhs;
+    bool mycmp(const BaseType &lhs, const BaseType &rhs, const string &opt) {
+        if (opt == "<") return lhs < rhs;
+        if (opt == ">") return lhs > rhs;
+        if (opt == "==") return lhs == rhs;
+        if (opt == ">=") return lhs >= rhs;
+        if (opt == "<=") return lhs <= rhs;
+        if (opt == "!=") return lhs != rhs;
         // '<'|'>'|'=='|'>='|'<=' | '!='
     }
 
@@ -134,7 +146,7 @@ class EvalVisitor: public Python3BaseVisitor {
         auto opt = ctx->comp_op();
         for (int i = 1; i < szv; ++i) {
             auto now = visitArith_expr(vec[i]);
-            if (!mycmp(last, now, visitComp_op(opt[i - 1])))
+            if (!mycmp(last, now, visitComp_op(opt[i - 1]).as<string>()))
                 return BaseType(false);
             last = now;
         }
@@ -142,7 +154,7 @@ class EvalVisitor: public Python3BaseVisitor {
     }
 
     virtual antlrcpp::Any visitComp_op(Python3Parser::Comp_opContext *ctx) override {
-        return BaseType(ctx->getText());
+        return ctx->getText();
     }
 
     virtual antlrcpp::Any visitArith_expr(Python3Parser::Arith_exprContext *ctx) override {
@@ -152,7 +164,7 @@ class EvalVisitor: public Python3BaseVisitor {
         if (szt == 1) return res;
         auto o = ctx->addorsub_op();
         for (int i = 1; i < szt; ++i) {
-            if ((bool)(visitAddorsub_op(o[i - 1])))
+            if ((visitAddorsub_op(o[i - 1])).as<bool>())
                 res = res + visitTerm(t[i]);
             else res = res - visitTerm(t[i]);
         }
@@ -160,34 +172,34 @@ class EvalVisitor: public Python3BaseVisitor {
     }
 
     virtual antlrcpp::Any visitAddorsub_op(Python3Parser::Addorsub_opContext *ctx) override {
-        return BaseType((bool)(ctx->getText() == "+"));
+        return bool(ctx->getText() == "+");
     }
 
     virtual antlrcpp::Any visitTerm(Python3Parser::TermContext *ctx) override {
         auto f = ctx->factor();
-        BaseType res = visitFactor(f[0]);
+        BaseType res = visitFactor(f[0]).as<BaseType>();
         auto szf = f.size();
-        if (szf == 1) return (res); 
+        if (szf == 1) return res; 
         auto o = ctx->muldivmod_op();
         for (int i = 1; i < szf; ++i) {
             string opt = visitMuldivmod_op(o[i - 1]).as<string>();
-            if (opt == "*") res = mul(res, visitFactor(f[i]));
-            if (opt == "/") res = ddiv(res, visitFactor(f[i]));
-            if (opt == "//") res = idiv(res, visitFactor(f[i]));
-            if (opt == "%") res = mod(res, visitFactor(f[i]));
+            if (opt == "*") res = mul(res, visitFactor(f[i]).as<BaseType>());
+            if (opt == "/") res = ddiv(res, visitFactor(f[i]).as<BaseType>());
+            if (opt == "//") res = idiv(res, visitFactor(f[i]).as<BaseType>());
+            if (opt == "%") res = mod(res, visitFactor(f[i]).as<BaseType>());
         }
         return res;
     }
 
     virtual antlrcpp::Any visitMuldivmod_op(Python3Parser::Muldivmod_opContext *ctx) override {
-        return BaseType(ctx->getText());
+        return ctx->getText();
     }
 
     virtual antlrcpp::Any visitFactor(Python3Parser::FactorContext *ctx) override {
         auto a = ctx->atom_expr();
         if (a) return visitAtom_expr(a);
         if (ctx->getText() == "+") return visitFactor(ctx->factor());
-        // else return -visitFactor(ctx->factor()); TODO
+        else return BaseType(-visitFactor(ctx->factor()).as<BaseType>());
     }
 
     virtual antlrcpp::Any visitAtom_expr(Python3Parser::Atom_exprContext *ctx) override {
@@ -203,7 +215,7 @@ class EvalVisitor: public Python3BaseVisitor {
 
     virtual antlrcpp::Any visitAtom(Python3Parser::AtomContext *ctx) override {
         if (ctx->NUMBER()) {
-            return stringToInt(ctx->NUMBER()->getText());
+            return BaseType(int2048(ctx->NUMBER()->getText()));
         } else if (ctx->NAME()) {
             auto result = scope.varQuery(ctx->NAME()->getText());
             if (result.first) return result.second;
@@ -222,7 +234,6 @@ class EvalVisitor: public Python3BaseVisitor {
     }
 
     virtual antlrcpp::Any visitTestlist(Python3Parser::TestlistContext *ctx) override {
-        auto t = ctx->test();
         return visitChildren(ctx);
     }
 

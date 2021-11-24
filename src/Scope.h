@@ -3,21 +3,22 @@
 
 #include <map>
 #include <string>
+#include "BaseType.h"
 
 class Scope {
 
     private:
-        std::map<std::string, int> varTable;
+        std::map<std::string, BaseType> varTable;
 
     public:
         Scope(): varTable() {}
-        void varRegister(const std::string& varName, int varData) {
+        void varRegister(const std::string &varName, const BaseType &varData) {
             varTable[varName] = varData;
         }    
 
-        std::pair<bool, int> varQuery(const std::string& varName) const {
+        std::pair<bool, BaseType> varQuery(const std::string& varName) const {
             auto it = varTable.find(varName);
-            if (it == varTable.end()) return std::make_pair(false, 0);
+            if (it == varTable.end()) return std::make_pair(false, BaseType());
             return std::make_pair(true, it->second);
         }
 };

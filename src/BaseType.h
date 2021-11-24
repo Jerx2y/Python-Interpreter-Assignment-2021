@@ -22,10 +22,19 @@ public:
     BaseType(int2048 _i) { t = 2, i = _i; }
     BaseType(double _d) { t = 3, d = _d; }
     BaseType(string _s) { t = 4, s = _s; }
-    explicit operator bool() const { return b; }
+    explicit operator bool() const {
+        if (t == 1) return b;
+        if (t == 2) return (bool) i;
+        if (t == 3) return (bool) d;
+        if (t == 4) return !s.empty();
+    }
     explicit operator int2048() const { return i; }
     explicit operator double() const { return d; }
     explicit operator string() const { return s; }
+    BaseType operator-() {
+        if (t == 2) return BaseType(-i);
+        if (t == 3) return BaseType(-d);
+    }
     friend BaseType operator+(const BaseType &lhs, const BaseType &rhs) {
         int t = max(lhs.t, rhs.t);
         if (t == 1) return BaseType(bool((int2048) lhs + (int2048) rhs));
