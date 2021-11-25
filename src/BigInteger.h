@@ -209,13 +209,41 @@ public:
     }
     friend int2048 operator/(const int2048 &lhs, const int2048 &rhs) {
         int2048 rem, res;
-        div(lhs, rhs, rem, res);
-        return res;
+        if (!lhs.opt && !rhs.opt) {
+            div(lhs, rhs, rem, res);
+            return res;
+        } else if (lhs.opt && rhs.opt) {
+            div(-lhs, -rhs, rem, res);
+            return res;
+        } else if (!lhs.opt && rhs.opt) {
+            div(lhs, -rhs, rem, res);
+            if (rem.d.size()) res = res + int2048(1);
+            return -res;
+        } else {
+            div(-lhs, rhs, rem, res);
+            if (rem.d.size()) res = res + int2048(1);
+            return -res;
+        }
     }
     friend int2048 operator%(const int2048 &lhs, const int2048 &rhs) {
         int2048 rem, res;
-        div(lhs, rhs, rem, res);
-        return rem;
+        if (!lhs.opt && !rhs.opt) {
+            div(lhs, rhs, rem, res);
+            return rem;
+        } else if (lhs.opt && !rhs.opt) {
+            div(-lhs, rhs, rem, res);
+            if (rem.d.size())
+                rem = rhs - rem;
+            return rem;
+        } else if (!lhs.opt && rhs.opt) {
+            div(lhs, -rhs, rem, res);
+            if (rem.d.size())
+                rem = rhs + rem;
+            return rem;
+        } else {
+            div(-lhs, -rhs, rem, res);
+            return -rem;
+        }
     }
     int2048 &operator/=(const int2048 &rhs) {
         *this = *this / rhs;
