@@ -10,32 +10,71 @@
 #include "BaseType.h"
 
 #include <iostream>
+#include <stack>
+#include <unordered_map>
+
 using std::cin;
 using std::cout;
 using std::endl;
 
 class EvalVisitor: public Python3BaseVisitor {
 
-    Scope scope;
+public:
+
+    struct Func {
+        Scope scope;
+        Python3Parser::SuiteContext *suite;
+        std::vector<std::string> testlist;
+        Func() : scope() { suite = nullptr; }
+    };
+
+    std::stack<Scope> Stack;
+    std::unordered_map<std::string, Func> Function;
+
+    EvalVisitor() : Python3BaseVisitor() {
+        while (!Stack.empty())
+            Stack.pop();
+        Stack.push(Scope());
+    }
 
     virtual antlrcpp::Any visitFile_input(Python3Parser::File_inputContext *ctx) override {
         return visitChildren(ctx);
     }
 
     virtual antlrcpp::Any visitFuncdef(Python3Parser::FuncdefContext *ctx) override {
-        return visitChildren(ctx);
-    }
+        auto funcName = ctx->NAME()->getText();
+        auto varList = visitParameters(ctx->parameters()).as<std::pair<std::vector<std::string>, std::vector<BaseType> > >();
+        const auto &varName = varList.first;
+        const auto &varData = varList.second;
+        Func now;
+        now.testlist = varName;
+        for (int i = varName.size() - 1, j = varData.size() - 1; j >= 0; --i, --j)
+            now.scope.varRegister(varName[i], varData[j]);
+        now.suite = ctx->suite(); // TODO
+        Function[funcName] = now;
+        return 0;
+    } //funcdef: 'def' NAME parameters ':' suite;
 
     virtual antlrcpp::Any visitParameters(Python3Parser::ParametersContext *ctx) override {
-        return visitChildren(ctx);
-    }
+        if (ctx->typedargslist())
+            return visitTypedargslist(ctx->typedargslist());
+        return std::make_pair(std::vector<std::string>(), std::vector<BaseType>());
+    } // parameters: '(' typedargslist? ')';
 
     virtual antlrcpp::Any visitTypedargslist(Python3Parser::TypedargslistContext *ctx) override {
-        return visitChildren(ctx);
-    }
+        std::vector<std::string> name;
+        std::vector<BaseType> test;
+        auto tfpdef = ctx->tfpdef();
+        for (auto x : tfpdef)
+            name.push_back(visitTfpdef(x).as<std::string>());
+        auto testArray = ctx->test();
+        for (auto x : testArray)
+            test.push_back(visitTest(x).as<BaseType>());
+        return std::make_pair(name, test);
+    } // typedargslist: (tfpdef ('=' test)? (',' tfpdef ('=' test)?)*);
 
     virtual antlrcpp::Any visitTfpdef(Python3Parser::TfpdefContext *ctx) override {
-        return visitChildren(ctx);
+        return ctx->NAME()->getText();
     }
 
     virtual antlrcpp::Any visitStmt(Python3Parser::StmtContext *ctx) override {
@@ -53,34 +92,60 @@ class EvalVisitor: public Python3BaseVisitor {
         else return visitExpr_stmt(ctx->expr_stmt());
     }
 
+    void getAugassign(BaseType &lhs, const BaseType &rhs, const std::string &opt) {
+        if (opt == "+=") lhs = lhs + rhs;
+        if (opt == "-=") lhs = lhs - rhs;
+        if (opt == "*=") lhs = mul(lhs, rhs);
+        if (opt == "/=") lhs = ddiv(lhs, rhs);
+        if (opt == "//=") lhs = idiv(lhs, rhs);
+        if (opt == "%=") lhs = mod(lhs, rhs);
+    }
+
     virtual antlrcpp::Any visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) override {
         // must return 0
+
+        auto testlistArray = ctx->testlist();
+        int arraySize = testlistArray.size();
+        auto varData = visitTestlist(testlistArray[arraySize - 1]).as<std::vector<BaseType> >();
+
         if (ctx->augassign()) {
-            // TODO;
+            auto varName = testlistArray[0]->getText();
+            varName += ',';
+            string name; name.clear();
+            for (int j = 0, k = 0, nameSize = varName.size(); j < nameSize; ++j) {
+                if (varName[j] == ',') {
+                    BaseType tmp = Stack.top().varQuery(name).second;
+                    getAugassign(tmp, varData[k++], visitAugassign(ctx->augassign()).as<std::string>());
+                    Stack.top().varRegister(name, tmp);
+                    name.clear();
+                } else name += varName[j];
+            }
             return 0;
         }
 
-        auto testlistArray = ctx->testlist();
-        int arraySize = testlistArray.size(); // ! , TODO
-
-        BaseType varData = visitTestlist(testlistArray[arraySize - 1]);
-
         for (int i = 0; i < arraySize - 1; ++i) {
-            std::string varName = testlistArray[i]->getText();
-            scope.varRegister(varName, varData);
+            auto varName = testlistArray[i]->getText();
+            varName += ',';
+            string name; name.clear();
+            for (int j = 0, k = 0, nameSize = varName.size(); j < nameSize; ++j) {
+                if (varName[j] == ',') {
+                    Stack.top().varRegister(name, varData[k++]);
+                    name.clear();
+                } else name += varName[j];
+            }
         }
 
         return 0;
     }
 
     virtual antlrcpp::Any visitAugassign(Python3Parser::AugassignContext *ctx) override {
-        return visitChildren(ctx);
+        return ctx->getText();
     }
 
     virtual antlrcpp::Any visitFlow_stmt(Python3Parser::Flow_stmtContext *ctx) override {
         if (ctx->break_stmt()) return -1;
         if (ctx->continue_stmt()) return -2;
-        if (ctx->return_stmt()) return -3;
+        if (ctx->return_stmt()) return visitReturn_stmt(ctx->return_stmt());
     }
 
     virtual antlrcpp::Any visitBreak_stmt(Python3Parser::Break_stmtContext *ctx) override {
@@ -92,7 +157,7 @@ class EvalVisitor: public Python3BaseVisitor {
     }
 
     virtual antlrcpp::Any visitReturn_stmt(Python3Parser::Return_stmtContext *ctx) override {
-        return visitChildren(ctx);
+        return visitTestlist(ctx->testlist());
     }
 
     virtual antlrcpp::Any visitCompound_stmt(Python3Parser::Compound_stmtContext *ctx) override {
@@ -114,8 +179,7 @@ class EvalVisitor: public Python3BaseVisitor {
 
     virtual antlrcpp::Any visitWhile_stmt(Python3Parser::While_stmtContext *ctx) override {
         while ((bool)visitTest(ctx->test()).as<BaseType>())
-            if (visitSuite(ctx->suite()).as<int>())
-                break;
+            if (visitSuite(ctx->suite()).as<int>()) break;
         return 0;
     }
 
@@ -124,9 +188,11 @@ class EvalVisitor: public Python3BaseVisitor {
             return visitSimple_stmt(ctx->simple_stmt());
         auto stmt = ctx->stmt();
         for (auto x : stmt) {
-            int tmp = visitStmt(x).as<int>();
-            if (tmp == -1) return 1;
-            if (tmp == -2) return 0;
+            auto tmp = visitStmt(x);
+            if (tmp.is<int>()) {
+                if (tmp.as<int>() == -1) return 1;
+                if (tmp.as<int>() == -2) return 0;
+            } else return tmp;
         }
         return 0;
     }
@@ -238,36 +304,44 @@ class EvalVisitor: public Python3BaseVisitor {
         auto trailer = ctx->trailer();
         if (!trailer) return visitAtom(ctx->atom());
         auto functionName = ctx->atom()->getText();
-        auto argsArray = visitTrailer(ctx->trailer()).as<std::vector<BaseType>>();
+        auto var = visitTrailer(trailer).as<std::vector<std::pair<std::string, BaseType> > >();
         if (functionName == "print") {
-            for (auto i : argsArray) 
-                i.print(' ');
+            for (auto i : var)
+                i.second.print(' ');
             puts("");
             return BaseType();
+        } else if (functionName == "int") {
+        } else if (functionName == "float") {
+        } else if (functionName == "str") {
+        } else if (functionName == "bool") {
+        } else {
+            const Func &nowFunc = Function[functionName];
+            Scope nowScope = nowFunc.scope;
+            int idx = 0;
+            for (auto x : var) {
+                if (x.first == "")
+                    nowScope.varRegister(nowFunc.testlist[idx++], x.second);
+                else nowScope.varRegister(x.first, x.second);
+            }
+            Stack.push(nowScope);
+            auto res = visitSuite(nowFunc.suite);
+            Stack.pop();
+            return res;
         }
-        if (functionName == "int") {
-            ;
-        }
-        if (functionName == "float") {
-            return BaseType((double) argsArray[0]);
-        }
-        if (functionName == "str") {
-            ;
-        }
-        if (functionName == "bool") {
-            ;
-        }
-        // TODO
     }
+
+// trailer: '(' (arglist)? ')' ;
+// arglist: argument (',' argument)*  (',')?;
+// argument: ( test |
+//             test '=' test );
 
     virtual antlrcpp::Any visitTrailer(Python3Parser::TrailerContext *ctx) override {
-        if (ctx->arglist()) return visit(ctx->arglist());
-        std::vector<BaseType> res;
-        res.clear();
-        return res;
+        if (ctx->arglist())
+            return visitArglist(ctx->arglist());
+        return std::vector<std::pair<std::string, BaseType> >();
     }
 
-    std::pair<bool, double> stringToDouble(const string &number) {
+    std::pair<bool, double> stringToDouble(const string &number) { // TODO: Utils.h
         int idx = -1, sz = number.size();
         for (int i = 0; i < sz; ++i)
             if (number[i] == '.') idx = i;
@@ -292,7 +366,7 @@ class EvalVisitor: public Python3BaseVisitor {
             if (tmp.first) return BaseType(tmp.second);
             return BaseType(int2048(number));
         } else if (ctx->NAME()) {
-            auto result = scope.varQuery(ctx->NAME()->getText());
+            auto result = Stack.top().varQuery(ctx->NAME()->getText());
             if (result.first) return result.second;
         } else if (ctx->test()) return visitTest(ctx->test());
         else if (ctx->TRUE()) return BaseType(true);
@@ -313,28 +387,27 @@ class EvalVisitor: public Python3BaseVisitor {
     }
 
     virtual antlrcpp::Any visitTestlist(Python3Parser::TestlistContext *ctx) override {
-        return visitChildren(ctx);
-    }
+        std::vector<BaseType> varData;
+        auto test = ctx->test();
+        for (auto x : test)
+            varData.push_back(visitTest(x).as<BaseType>());
+        return varData;
+    } // testlist: test (',' test)* (',')?;
 
     virtual antlrcpp::Any visitArglist(Python3Parser::ArglistContext *ctx) override {
-        std::vector<BaseType> res;
-        res.clear();
-        auto arg = ctx->argument();
-        for (auto x : arg)
-            res.push_back(visitArgument(x).as<BaseType>());
+        std::vector<std::pair<std::string, BaseType> > res;
+        auto argu = ctx->argument();
+        for (auto x : argu)
+            res.push_back(visit(x).as<std::pair<std::string, BaseType> >());
         return res;
-    }
+    } // arglist: argument (',' argument)*  (',')?;
 
     virtual antlrcpp::Any visitArgument(Python3Parser::ArgumentContext *ctx) override {
         auto test = ctx->test();
         if (test.size() == 1)
-            return visitTest(test[0]);
-        BaseType varData = visitTest(test[1]);
-        string varName = test[0]->getText();
-        scope.varRegister(varName, varData);
-        return varData;
-    }
-
+            return std::make_pair(std::string(), visitTest(test[0]).as<BaseType>());
+        return std::make_pair(test[0]->getText(), visitTest(test[1]).as<BaseType>());
+    } // argument: ( test | test '=' test );
 };
 
 

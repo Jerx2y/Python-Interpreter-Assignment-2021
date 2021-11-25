@@ -89,6 +89,7 @@ public:
     friend bool operator==(const BaseType &lhs, const BaseType &rhs) { return lhs <= rhs && rhs <= lhs; }
     friend bool operator!=(const BaseType &lhs, const BaseType &rhs) { return lhs < rhs || rhs < lhs; }
     void print(char ch = 0) {
+        if (t == 0) printf("None");
         if (t == 1) printf(b ? "True" : "False");
         if (t == 2) std::cout << i;
         if (t == 3) printf("%.6lf", d);

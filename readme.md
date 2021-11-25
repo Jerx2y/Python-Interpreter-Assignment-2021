@@ -1,9 +1,7 @@
 ## 待办清单
 
-### 功能部分
+### 功能函数
 
-- [ ] 变量栈空间管理
-- [ ] 函数定义与调用
 - [x] print
 - [ ] int
 - [ ] double
@@ -12,25 +10,25 @@
 
 ### 表达式解析部分
 
-- [ ] `file_input: (NEWLINE | stmt)* EOF;`
+- [x] `file_input: (NEWLINE | stmt)* EOF;`
   
-- [ ] `funcdef: 'def' NAME parameters ':' suite;`
+- [x] `funcdef: 'def' NAME parameters ':' suite;`
 
-- [ ] `parameters: '(' typedargslist? ')';`
+- [x] `parameters: '(' typedargslist? ')';`
   
-- [ ] `typedargslist: (tfpdef ('=' test)? (',' tfpdef ('=' test)?)*);`
+- [x] `typedargslist: (tfpdef ('=' test)? (',' tfpdef ('=' test)?)*);`
   
-- [ ] `tfpdef: NAME ;`
+- [x] `tfpdef: NAME ;`
 
-- [ ] `stmt: simple_stmt | compound_stmt;`
+- [x] `stmt: simple_stmt | compound_stmt;`
   
 - [x] `simple_stmt: small_stmt  NEWLINE;`
   
 - [x] `small_stmt: expr_stmt | flow_stmt;`
   
-- [ ] `expr_stmt: testlist ( (augassign testlist) | ('=' testlist)*);  // 连等 加等/减等/...`
+- [x] `expr_stmt: testlist ( (augassign testlist) | ('=' testlist)*);  // 连等 加等/减等/...`
   
-- [ ] `augassign: ('+=' | '-=' | '*=' | '/=' | '//=' | '%=' );`
+- [x] `augassign: ('+=' | '-=' | '*=' | '/=' | '//=' | '%=' );`
   
 - [x] `flow_stmt: break_stmt | continue_stmt | return_stmt;`
   
@@ -38,9 +36,9 @@
 
 - [x] `continue_stmt: 'continue';`
   
-- [ ] `return_stmt: 'return' (testlist)?;`
+- [x] `return_stmt: 'return' (testlist)?;`
   
-- [ ] `compound_stmt: if_stmt | while_stmt | funcdef ;`
+- [x] `compound_stmt: if_stmt | while_stmt | funcdef ;`
   
 - [x] `if_stmt: 'if' test ':' suite ('elif' test ':' suite)* ('else' ':' suite)?;`
   
@@ -70,22 +68,14 @@
   
 - [x] `factor: ('+'|'-') factor | atom_expr;`
   
-- [ ] `atom_expr: atom trailer?;`
+- [x] `atom_expr: atom trailer?;`
 
-- [ ] `trailer: '(' (arglist)? ')' ;`
+- [x] `trailer: '(' (arglist)? ')' ;`
   
 - [x] `atom: (NAME | NUMBER | STRING+| 'None' | 'True' | 'False' | ('(' test ')'));`
   
-- [ ] `testlist: test (',' test)* (',')?;  // 算式  eg： a,b  a  a+b`
+- [x] `testlist: test (',' test)* (',')?;  // 算式  eg： a,b  a  a+b`
   
 - [x] `arglist: argument (',' argument)*  (',')?;`
   
 - [x] `argument: ( test | test '=' test );`
-
-
-
-### 未实现
-
-增量赋值
-
-多变量赋值
