@@ -39,18 +39,22 @@ class EvalVisitor: public Python3BaseVisitor {
     }
 
     virtual antlrcpp::Any visitStmt(Python3Parser::StmtContext *ctx) override {
-        return visitChildren(ctx);
+        if (ctx->simple_stmt())
+            return visitSimple_stmt(ctx->simple_stmt());
+        else return visitCompound_stmt(ctx->compound_stmt());
     }
 
     virtual antlrcpp::Any visitSimple_stmt(Python3Parser::Simple_stmtContext *ctx) override {
-        return visitChildren(ctx);
+        return visitSmall_stmt(ctx->small_stmt());
     }
 
     virtual antlrcpp::Any visitSmall_stmt(Python3Parser::Small_stmtContext *ctx) override {
-        return visitChildren(ctx);
+        if (ctx->flow_stmt()) return visitFlow_stmt(ctx->flow_stmt());
+        else return visitExpr_stmt(ctx->expr_stmt());
     }
 
     virtual antlrcpp::Any visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) override {
+        // must return 0
         if (ctx->augassign()) {
             // TODO;
             return 0;
@@ -74,7 +78,9 @@ class EvalVisitor: public Python3BaseVisitor {
     }
 
     virtual antlrcpp::Any visitFlow_stmt(Python3Parser::Flow_stmtContext *ctx) override {
-        return visitChildren(ctx);
+        if (ctx->break_stmt()) return -1;
+        if (ctx->continue_stmt()) return -2;
+        if (ctx->return_stmt()) return -3;
     }
 
     virtual antlrcpp::Any visitBreak_stmt(Python3Parser::Break_stmtContext *ctx) override {
@@ -94,15 +100,35 @@ class EvalVisitor: public Python3BaseVisitor {
     }
 
     virtual antlrcpp::Any visitIf_stmt(Python3Parser::If_stmtContext *ctx) override {
-        return visitChildren(ctx);
+        auto test = ctx->test();
+        auto suite = ctx->suite();
+        auto testSize = test.size();
+        for (int i = 0; i < testSize; ++i)
+            if ((bool) visitTest(test[i]).as<BaseType>()) {
+                return visitSuite(suite[i]);
+            }
+        if (testSize != suite.size()) 
+            return visitSuite(suite[testSize]);
+        return 0;
     }
 
     virtual antlrcpp::Any visitWhile_stmt(Python3Parser::While_stmtContext *ctx) override {
-        return visitChildren(ctx);
+        while ((bool)visitTest(ctx->test()).as<BaseType>())
+            if (visitSuite(ctx->suite()).as<int>())
+                break;
+        return 0;
     }
 
     virtual antlrcpp::Any visitSuite(Python3Parser::SuiteContext *ctx) override {
-        return visitChildren(ctx);
+        if (ctx->simple_stmt())
+            return visitSimple_stmt(ctx->simple_stmt());
+        auto stmt = ctx->stmt();
+        for (auto x : stmt) {
+            int tmp = visitStmt(x).as<int>();
+            if (tmp == -1) return 1;
+            if (tmp == -2) return 0;
+        }
+        return 0;
     }
 
     virtual antlrcpp::Any visitTest(Python3Parser::TestContext *ctx) override {
@@ -218,6 +244,18 @@ class EvalVisitor: public Python3BaseVisitor {
                 i.print(' ');
             puts("");
             return BaseType();
+        }
+        if (functionName == "int") {
+            ;
+        }
+        if (functionName == "float") {
+            return BaseType((double) argsArray[0]);
+        }
+        if (functionName == "str") {
+            ;
+        }
+        if (functionName == "bool") {
+            ;
         }
         // TODO
     }

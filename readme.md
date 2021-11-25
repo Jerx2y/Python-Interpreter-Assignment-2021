@@ -4,7 +4,11 @@
 
 - [ ] 变量栈空间管理
 - [ ] 函数定义与调用
-- [ ] 内建函数
+- [x] print
+- [ ] int
+- [ ] double
+- [ ] str
+- [ ] bool
 
 ### 表达式解析部分
 
@@ -20,29 +24,29 @@
 
 - [ ] `stmt: simple_stmt | compound_stmt;`
   
-- [ ] `simple_stmt: small_stmt  NEWLINE;`
+- [x] `simple_stmt: small_stmt  NEWLINE;`
   
-- [ ] `small_stmt: expr_stmt | flow_stmt;`
+- [x] `small_stmt: expr_stmt | flow_stmt;`
   
 - [ ] `expr_stmt: testlist ( (augassign testlist) | ('=' testlist)*);  // 连等 加等/减等/...`
   
 - [ ] `augassign: ('+=' | '-=' | '*=' | '/=' | '//=' | '%=' );`
   
-- [ ] `flow_stmt: break_stmt | continue_stmt | return_stmt;`
+- [x] `flow_stmt: break_stmt | continue_stmt | return_stmt;`
   
-- [ ] `break_stmt: 'break';`
+- [x] `break_stmt: 'break';`
 
-- [ ] `continue_stmt: 'continue';`
+- [x] `continue_stmt: 'continue';`
   
 - [ ] `return_stmt: 'return' (testlist)?;`
   
 - [ ] `compound_stmt: if_stmt | while_stmt | funcdef ;`
   
-- [ ] `if_stmt: 'if' test ':' suite ('elif' test ':' suite)* ('else' ':' suite)?;`
+- [x] `if_stmt: 'if' test ':' suite ('elif' test ':' suite)* ('else' ':' suite)?;`
   
-- [ ] `while_stmt: 'while' test ':' suite;`
+- [x] `while_stmt: 'while' test ':' suite;`
 
-- [ ] `suite: simple_stmt | NEWLINE INDENT stmt+ DEDENT;`
+- [x] `suite: simple_stmt | NEWLINE INDENT stmt+ DEDENT;`
   
 - [x] `test: or_test ;`
   
@@ -74,6 +78,14 @@
   
 - [ ] `testlist: test (',' test)* (',')?;  // 算式  eg： a,b  a  a+b`
   
-- [ ] `arglist: argument (',' argument)*  (',')?;`
+- [x] `arglist: argument (',' argument)*  (',')?;`
   
-- [ ] `argument: ( test | test '=' test );`
+- [x] `argument: ( test | test '=' test );`
+
+
+
+### 未实现
+
+增量赋值
+
+多变量赋值
