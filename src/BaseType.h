@@ -23,6 +23,11 @@ public:
     BaseType(int2048 _i) { t = 2, i = _i; }
     BaseType(double _d) { t = 3, d = _d; }
     BaseType(string _s) { t = 4, s = _s; }
+    BaseType(int err, int _t) { t = _t; }
+    bool isBreak() { return t == -2; }
+    bool isVar() { return t > 0; }
+    bool isContinue() { return t == -3; }
+    bool isReturn() { return t == -4; }
     explicit operator bool() const {
         if (t == 1) return b;
         if (t == 2) return (bool) i;
@@ -89,6 +94,7 @@ public:
     friend bool operator==(const BaseType &lhs, const BaseType &rhs) { return lhs <= rhs && rhs <= lhs; }
     friend bool operator!=(const BaseType &lhs, const BaseType &rhs) { return lhs < rhs || rhs < lhs; }
     void print(char ch = 0) {
+        if (t < 0) std::cout << " ERR ! " << t;
         if (t == 0) printf("None");
         if (t == 1) printf(b ? "True" : "False");
         if (t == 2) std::cout << i;

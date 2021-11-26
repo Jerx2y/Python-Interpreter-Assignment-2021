@@ -2,7 +2,6 @@
 #define PYTHON_INTERPRETER_EVALVISITOR_H
 
 
-#include <cassert>
 #include <vector>
 #include "Python3BaseVisitor.h"
 #include "Scope.h"
@@ -29,9 +28,14 @@ public:
         Func() : scope() { suite = nullptr; }
     };
 
-    std::stack<Scope> Local;
-    Scope Global;
+    std::stack<Scope> Stack;
     std::unordered_map<std::string, Func> Function;
+
+    EvalVisitor() : Python3BaseVisitor() {
+        while (!Stack.empty())
+            Stack.pop();
+        Stack.push(Scope());
+    }
 
     virtual antlrcpp::Any visitFile_input(Python3Parser::File_inputContext *ctx) override {
         return visitChildren(ctx);
@@ -97,18 +101,6 @@ public:
         if (opt == "%=") lhs = mod(lhs, rhs);
     }
 
-    BaseType read(const std::string &name) {
-        if (Local.empty() || !Local.top().varQuery(name).first)
-            return Global.varQuery(name).second;
-        return Local.top().varQuery(name).second;
-    }
-
-    void write(const std::string& name, const BaseType & var) {
-        if (Local.empty() || !Local.top().varQuery(name).first) {
-            Global.varRegister(name, var);
-        } else Local.top().varRegister(name, var);
-    }
-
     virtual antlrcpp::Any visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) override {
 
         auto testlistArray = ctx->testlist();
@@ -121,13 +113,13 @@ public:
             string name; name.clear();
             for (int j = 0, k = 0, nameSize = varName.size(); j < nameSize; ++j) {
                 if (varName[j] == ',') {
-                    BaseType tmp = read(name);
+                    BaseType tmp = Stack.top().varQuery(name).second;
                     getAugassign(tmp, varData[k++], visitAugassign(ctx->augassign()).as<std::string>());
-                    write(name, tmp);
+                    Stack.top().varRegister(name, tmp);
                     name.clear();
                 } else name += varName[j];
             }
-            return BaseType(0, -1);
+            return 0;
         }
 
         for (int i = 0; i < arraySize - 1; ++i) {
@@ -136,14 +128,13 @@ public:
             string name; name.clear();
             for (int j = 0, k = 0, nameSize = varName.size(); j < nameSize; ++j) {
                 if (varName[j] == ',') {
-                    write(name, varData[k++]);
+                    Stack.top().varRegister(name, varData[k++]);
                     name.clear();
                 } else name += varName[j];
             }
         }
 
-
-        if (arraySize > 1) return BaseType(0, -1);
+        if (arraySize > 1) return 0;
         else return varData;
     }
 
@@ -152,8 +143,8 @@ public:
     }
 
     virtual antlrcpp::Any visitFlow_stmt(Python3Parser::Flow_stmtContext *ctx) override {
-        if (ctx->break_stmt()) return BaseType(0, -2);
-        if (ctx->continue_stmt()) return BaseType(0, -3);
+        if (ctx->break_stmt()) return -1;
+        if (ctx->continue_stmt()) return -2;
         if (ctx->return_stmt()) return visitReturn_stmt(ctx->return_stmt());
     }
 
@@ -167,7 +158,7 @@ public:
 
     virtual antlrcpp::Any visitReturn_stmt(Python3Parser::Return_stmtContext *ctx) override {
         if (ctx->testlist()) return visitTestlist(ctx->testlist());
-        else return BaseType(0, -4);
+        else return BaseType(bool(0));
     }
 
     virtual antlrcpp::Any visitCompound_stmt(Python3Parser::Compound_stmtContext *ctx) override {
@@ -179,28 +170,33 @@ public:
         auto suite = ctx->suite();
         auto testSize = test.size();
         for (int i = 0; i < testSize; ++i)
-            if ((bool) visitTest(test[i]).as<BaseType>())
-                return visitSuite(suite[i]);
-
-        if (testSize != suite.size())
-            return visitSuite(suite[testSize]);
-
-        return BaseType(0, -1);
+            if ((bool) visitTest(test[i]).as<BaseType>()) {
+                auto tmp = visitSuite(suite[i]);
+                if (tmp.is<int>()) return tmp;
+                else if (tmp.is<std::vector<BaseType> >())
+                    return tmp;
+                else return tmp;
+            }
+        if (testSize != suite.size()) { 
+            auto tmp = visitSuite(suite[testSize]);
+            if (tmp.is<int>()) return tmp;
+            else if (tmp.is<std::vector<BaseType> >())
+                return tmp;
+            else return tmp;
+        }
+        return 0;
     }
 
     virtual antlrcpp::Any visitWhile_stmt(Python3Parser::While_stmtContext *ctx) override {
-        while ((bool) visitTest(ctx->test()).as<BaseType>()) {
+        while ((bool)visitTest(ctx->test()).as<BaseType>()) {
             auto tmp = visitSuite(ctx->suite());
-            if (tmp.is<BaseType>()) {
-                if (tmp.as<BaseType>().isBreak())
-                    break;
-                if (tmp.as<BaseType>().isVar())
-                    return tmp;
-                if (tmp.as<BaseType>().isReturn())
-                    return tmp;
-            } else return tmp;
+            if (tmp.is<int>()) {
+                if (tmp.as<int>()) return tmp;
+            } else if (tmp.is<std::vector<BaseType> >())
+                return tmp;
+            else if (tmp.as<BaseType>() != BaseType()) return tmp;
         }
-        return BaseType(0, -1);
+        return 0;
     }
 
     virtual antlrcpp::Any visitSuite(Python3Parser::SuiteContext *ctx) override {
@@ -209,33 +205,15 @@ public:
         auto stmt = ctx->stmt();
         for (auto x : stmt) {
             auto tmp = visitStmt(x);
-
-            if (tmp.is<BaseType>()) {
-                if (tmp.as<BaseType>().isBreak())
-                    return BaseType(0, -2);
-                if (tmp.as<BaseType>().isContinue())
-                    return BaseType(0, -1);
-                if (tmp.as<BaseType>().isVar())
-                    return tmp;
-                if (tmp.as<BaseType>().isReturn())
-                    return BaseType(0, -4);
-            } else {
-                assert(tmp.is<std::vector<BaseType> >());
-                auto res = tmp.as<std::vector<BaseType> >();
-                if (res.size() == 1) {
-                    if (res[0].isBreak())
-                        return BaseType(0, -2);
-                    if (res[0].isContinue())
-                        return BaseType(0, -1);
-                    if (res[0].isVar())
-                        return res[0];
-                    if (res[0].isReturn())
-                        return BaseType(0, -4);
-                } else return res;
-            }
-
+            if (tmp.is<int>()) {
+                if (tmp.as<int>() == -1) return 1;
+                if (tmp.as<int>() == -2) return 0;
+            } else if (tmp.is<std::vector<BaseType>>())
+                return tmp;
+            else if (tmp.as<BaseType>() != BaseType()) 
+                return tmp;
         }
-        return BaseType(0, -1);
+        return 0;
     }
 
     virtual antlrcpp::Any visitTest(Python3Parser::TestContext *ctx) override {
@@ -350,7 +328,7 @@ public:
             for (auto i : var)
                 i.second.print(' ');
             cout << endl;
-            return BaseType(0, -1);
+            return BaseType();
         } else if (functionName == "exit") {
             exit(0);
         } else if (functionName == "int") {
@@ -366,21 +344,20 @@ public:
                     nowScope.varRegister(nowFunc.testlist[idx++], x.second);
                 else nowScope.varRegister(x.first, x.second);
             }
-            Local.push(nowScope);
+            Stack.push(nowScope);
             auto res = visitSuite(nowFunc.suite);
-            Local.pop();
+            Stack.pop();
 
 //            cout << functionName << endl;
 //            cout << res.is<BaseType>() << endl;
 //            cout << res.is<std::vector<BaseType>>() << endl;
-
+//            cout << res.is<int>() << endl;
 
             if (res.is<std::vector<BaseType> >()) {
                 auto ret = res.as<std::vector<BaseType> >();
                 if (ret.size() == 1) return ret[0];
                 else return ret;
-            } else if (res.is<BaseType>()) return res;
-            else return BaseType(0, -1);
+            } else return BaseType(int2048(0));
         }
     }
 
@@ -420,7 +397,8 @@ public:
             if (tmp.first) return BaseType(tmp.second);
             return BaseType(int2048(number));
         } else if (ctx->NAME()) {
-            return read(ctx->NAME()->getText());
+            auto result = Stack.top().varQuery(ctx->NAME()->getText());
+            if (result.first) return result.second;
         } else if (ctx->test()) return visitTest(ctx->test());
         else if (ctx->TRUE()) return BaseType(true);
         else if (ctx->FALSE()) return BaseType(false);
@@ -452,6 +430,10 @@ public:
                     varData.push_back(x);
             }
         }
+//        cout << " @ " << varData.size() << endl;
+//        for (auto x : varData)
+//            x.print('\n');
+//        cout << " # # # " << endl;
         return varData;
     } // testlist: test (',' test)* (',')?;
 
@@ -473,3 +455,4 @@ public:
 
 
 #endif //PYTHON_INTERPRETER_EVALVISITOR_H
+
