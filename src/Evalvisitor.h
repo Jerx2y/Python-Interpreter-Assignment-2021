@@ -172,6 +172,7 @@ public:
         if (ctx->testlist()) {
             auto res = visitTestlist(ctx->testlist()).as<std::vector<BaseType> >();
             if (res.size() == 1) return res[0];
+            else return res;
         } else return BaseType(0, -4);
     }
 
