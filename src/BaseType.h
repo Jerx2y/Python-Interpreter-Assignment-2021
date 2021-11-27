@@ -101,10 +101,13 @@ public:
         return BaseType((int2048) lhs % (int2048) rhs);
     }
     friend bool operator<(const BaseType &lhs, const BaseType &rhs) {
-        const int &t = lhs.t;
+        const int &t = max(lhs.t, rhs.t);
+        if (!lhs.t && rhs.t) return false;
+        if (lhs.t && !rhs.t) return true;
+        if (!lhs.t && !rhs.t) return false;
         if (t == 1) return lhs.b < rhs.b;
-        if (t == 2) return lhs.i < rhs.i;
-        if (t == 3) return lhs.d < rhs.d;
+        if (t == 2) return (int2048) lhs < (int2048) rhs;
+        if (t == 3) return (double) lhs < (double) rhs;
         if (t == 4) return lhs.s < rhs.s;
     }
     friend bool operator>(const BaseType &lhs, const BaseType &rhs) { return rhs < lhs; }

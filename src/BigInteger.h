@@ -151,31 +151,31 @@ public:
         return res;
     }
 
-    friend int2048 operator*(const int2048 &lhs, long long rhs) {
-        if (rhs >= base || rhs <= -base) {
-            int2048 tmp(rhs);
-            return tmp * lhs;
-        }
-
-        int2048 res;
-        res.opt = lhs.opt ^ (rhs < 0);
-        if (rhs < 0) rhs = -rhs;
-
-        res.d.resize(lhs.d.size() + 1);
-        for (int i = res.d.size() - 1; i >= 0; --i)
-            res.d[i] = 0;
-        for (int i = 0, szi = lhs.d.size(); i < szi; ++i) {
-            res.d[i] += lhs.d[i] * rhs;
-            if (res.d[i] >= base) {
-                res.d[i + 1] += res.d[i] / base;
-                res.d[i] %= base;
-            }
-        }
-
-        while (!res.d.empty() && !res.d.back()) res.d.pop_back(); 
-
-        return res;
-    }
+//    friend int2048 operator*(const int2048 &lhs, long long rhs) {
+//        if (rhs >= base || rhs <= -base) {
+//            int2048 tmp(rhs);
+//            return tmp * lhs;
+//        }
+//
+//        int2048 res;
+//        res.opt = lhs.opt ^ (rhs < 0);
+//        if (rhs < 0) rhs = -rhs;
+//
+//        res.d.resize(lhs.d.size() + 1);
+//        for (int i = res.d.size() - 1; i >= 0; --i)
+//            res.d[i] = 0;
+//        for (int i = 0, szi = lhs.d.size(); i < szi; ++i) {
+//            res.d[i] += lhs.d[i] * rhs;
+//            if (res.d[i] >= base) {
+//                res.d[i + 1] += res.d[i] / base;
+//                res.d[i] %= base;
+//            }
+//        }
+//
+//        while (!res.d.empty() && !res.d.back()) res.d.pop_back(); 
+//
+//        return res;
+//    }
 
     int2048 &operator*=(const int2048 &rhs) {
         *this = *this * rhs;
@@ -188,31 +188,35 @@ public:
             d[i] = d[i - 1];
         d[0] = x;
     }
+
+
     friend void div(const int2048 &lhs, const int2048 &rhs, int2048 &rem, int2048 &res) {
+        int rhs_l = rhs.d.back() + 1, rhs_r = rhs.d.back();
         for (int i = lhs.d.size()  - 1; i >= 0; --i) {
             rem.shift(lhs.d[i]);
-            if (rem < rhs) continue;
-            int l = 1, r = base - 1;
-            if (rem.d.size() == rhs.d.size()) {
-                l = rem.d.back() / (rhs.d.back() + 1);
-                r = rem.d.back() / rhs.d.back();
-            } else if (rem.d.size() >= 2) {
-                l = (rem.d.back() * base + rem.d[rem.d.size() - 2]) / (rhs.d.back() + 1);
-                r = (rem.d.back() * base + rem.d[rem.d.size() - 2]) / rhs.d.back();
+            if (rem < rhs) {
+                res.d.push_back(0);
+                continue;
             }
-            if (r >= base) r = base - 1;
-            if (l < 1) l = 1;
+            int l, r;
+            if (rem.d.size() == rhs.d.size()) {
+                l = rem.d.back() / rhs_l;
+                r = (rem.d.back() + 1) / rhs_r;
+            } else {
+                l = (1ll * rem.d.back() * base + rem.d[rem.d.size() - 2]) / rhs_l;
+                r = (1ll * rem.d.back() * base + rem.d[rem.d.size() - 2] + 1) / rhs_r;
+            }
             while (l < r) {
                 int mid = (l + r + 1) >> 1;
-                if (rhs * (long long) mid <= rem) 
+                if (rhs * int2048(mid) <= rem) 
                     l = mid;
                 else r = mid - 1;
             }
             res.d.push_back(l);
-            rem -= rhs * (long long) l;
+            rem -= rhs * int2048(l);
         }
-        for (int i = 0, sz = res.d.size(); i < sz / 2; ++i)
-            std::swap(res.d[i], res.d[sz - i - 1]);
+        std::reverse(res.d.begin(), res.d.end());
+        while (!res.d.empty() && !res.d.back()) res.d.pop_back();
     }
     friend int2048 operator/(const int2048 &lhs, const int2048 &rhs) {
         int2048 rem, res;
