@@ -250,7 +250,6 @@ public:
                 if (tmp.as<BaseType>().isReturn())
                     return BaseType(0, -4);
             } else {
-                assert(tmp.is<std::vector<BaseType> >());
                 auto res = tmp.as<std::vector<BaseType> >();
                 if (res.size() == 1) {
                     if (res[0].isBreak())
@@ -435,8 +434,7 @@ public:
 //             test '=' test );
 
     virtual antlrcpp::Any visitTrailer(Python3Parser::TrailerContext *ctx) override {
-        if (ctx->arglist())
-            return visitArglist(ctx->arglist());
+        if (ctx->arglist()) return visitArglist(ctx->arglist());
         return std::vector<std::pair<std::string, BaseType> >();
     }
 

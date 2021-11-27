@@ -11,7 +11,7 @@ using std::endl;
 class Scope {
 
     private:
-        std::map<std::string, BaseType> varTable;
+        std::unordered_map<std::string, BaseType> varTable;
 
     public:
         Scope(): varTable() {}
