@@ -195,6 +195,8 @@ public:
                 l = (rem.d.back() * base + rem.d[rem.d.size() - 2]) / (rhs.d.back() + 1);
                 r = (rem.d.back() * base + rem.d[rem.d.size() - 2]) / rhs.d.back();
             }
+            if (r >= base) r = base - 1;
+            if (l < 1) l = 1;
             while (l < r) {
                 int mid = (l + r + 1) >> 1;
                 if (rhs * (long long) mid <= rem) 
