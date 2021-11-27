@@ -446,7 +446,7 @@ public:
             if (number[i] == '.') idx = i;
         if (idx == -1) return std::make_pair(false, 0);
         double res = 0;
-        for (int i = idx - 1; i >= 0; --i)
+        for (int i = 0; i < idx; ++i)
             res = res * 10 + number[i] - '0';
 
         double tmp = 0.1;
