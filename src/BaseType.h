@@ -34,9 +34,28 @@ public:
         if (t == 3) return (bool) d;
         if (t == 4) return !s.empty();
     }
-    explicit operator int2048() const { return i; }
-    explicit operator double() const { return d; }
-    explicit operator string() const { return s; }
+    explicit operator int2048() const {
+        if (t == 1) return int2048(b ? 1 : 0);
+        if (t == 2) return i;
+        if (t == 3) {
+            string res = std::to_string(d);
+            res.resize(res.size() - 7);
+            return int2048(res);
+        }
+        if (t == 4) return int2048(s);
+    }
+    explicit operator double() const {
+        if (t == 1) return b;
+        if (t == 2) return (double) i;
+        if (t == 3) return d;
+        if (t == 4) return stod(s);
+    }
+    explicit operator string() const {
+        if (t == 1) return b ? "True" : "False";
+        if (t == 2) return i.tostring();
+        if (t == 3) return std::to_string(d);
+        return s;
+    }
     BaseType operator-() {
         if (t == 2) return BaseType(-i);
         if (t == 3) return BaseType(-d);

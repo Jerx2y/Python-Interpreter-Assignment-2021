@@ -384,9 +384,17 @@ public:
         } else if (functionName == "exit") {
             exit(0);
         } else if (functionName == "int") {
+            auto varData = var[0].second;
+            return BaseType((int2048)varData);
         } else if (functionName == "float") {
+            auto varData = var[0].second;
+            return BaseType((double)varData);
         } else if (functionName == "str") {
+            auto varData = var[0].second;
+            return BaseType((std::string)varData);
         } else if (functionName == "bool") {
+            auto varData = var[0].second;
+            return BaseType((bool)varData);
         } else {
             const Func &nowFunc = Function[functionName];
             Scope nowScope = nowFunc.scope;

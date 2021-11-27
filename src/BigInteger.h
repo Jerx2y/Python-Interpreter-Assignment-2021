@@ -70,15 +70,20 @@ public:
     void read(const std::string &s) {
         *this = int2048(s);
     }
-    void print(char ch = 0) const {
-        if (d.empty()) {
-            putchar('0');
-            if (ch) putchar(ch);
-            return ;
+    std::string tostring() const {
+        if (d.empty()) return "0";
+        std::string res;
+        if (opt) res = "-";
+        for (int i = d.size() - 1; i >= 0; --i) {
+            char tmp[12];
+            sprintf(tmp, i == d.size() - 1 ? "%lld" : "%09lld", d[i]);
+            for (char *p = tmp; *p; ++p)
+                res += *p;
         }
-        if (opt) putchar('-');
-        for (int i = d.size() - 1; i >= 0; --i)
-            printf(i == d.size() - 1 ? "%lld" : "%09lld", d[i]);
+        return res;
+    }
+    void print(char ch = 0) const {
+        std::cout << tostring();
         if (ch) putchar(ch);
     }
 

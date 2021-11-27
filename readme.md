@@ -1,14 +1,12 @@
-## 待办清单
-
-### 功能函数
+### 内建函数
 
 - [x] print
-- [ ] int
-- [ ] double
-- [ ] str
-- [ ] bool
+- [x] int
+- [x] float
+- [x] str
+- [x] bool
 
-### 表达式解析部分
+### 表达式解析
 
 - [x] `file_input: (NEWLINE | stmt)* EOF;`
   
@@ -26,7 +24,7 @@
   
 - [x] `small_stmt: expr_stmt | flow_stmt;`
   
-- [x] `expr_stmt: testlist ( (augassign testlist) | ('=' testlist)*);  // 连等 加等/减等/...`
+- [x] `expr_stmt: testlist ( (augassign testlist) | ('=' testlist)*);`
   
 - [x] `augassign: ('+=' | '-=' | '*=' | '/=' | '//=' | '%=' );`
   
@@ -74,7 +72,7 @@
   
 - [x] `atom: (NAME | NUMBER | STRING+| 'None' | 'True' | 'False' | ('(' test ')'));`
   
-- [x] `testlist: test (',' test)* (',')?;  // 算式  eg： a,b  a  a+b`
+- [x] `testlist: test (',' test)* (',')?;`
   
 - [x] `arglist: argument (',' argument)*  (',')?;`
   
