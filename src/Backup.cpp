@@ -2,6 +2,7 @@
 #define PYTHON_INTERPRETER_EVALVISITOR_H
 
 
+#include <cassert>
 #include <vector>
 #include "Python3BaseVisitor.h"
 #include "Scope.h"
@@ -28,14 +29,9 @@ public:
         Func() : scope() { suite = nullptr; }
     };
 
-    std::stack<Scope> Stack;
+    std::stack<Scope> Local;
+    Scope Global;
     std::unordered_map<std::string, Func> Function;
-
-    EvalVisitor() : Python3BaseVisitor() {
-        while (!Stack.empty())
-            Stack.pop();
-        Stack.push(Scope());
-    }
 
     virtual antlrcpp::Any visitFile_input(Python3Parser::File_inputContext *ctx) override {
         return visitChildren(ctx);
@@ -78,8 +74,7 @@ public:
     }
 
     virtual antlrcpp::Any visitStmt(Python3Parser::StmtContext *ctx) override {
-        if (ctx->simple_stmt())
-            return visitSimple_stmt(ctx->simple_stmt());
+        if (ctx->simple_stmt()) return visitSimple_stmt(ctx->simple_stmt());
         else return visitCompound_stmt(ctx->compound_stmt());
     }
 
@@ -101,6 +96,23 @@ public:
         if (opt == "%=") lhs = mod(lhs, rhs);
     }
 
+    BaseType read(const std::string &name) {
+        if (Local.empty() || !Local.top().varQuery(name).first)
+            return Global.varQuery(name).second;
+        return Local.top().varQuery(name).second;
+    }
+
+    void writea(const std::string& name, const BaseType & var) {
+        if (Local.empty() || !Local.top().varQuery(name).first) {
+            Global.varRegister(name, var);
+        } else Local.top().varRegister(name, var);
+    }
+
+    void write(const std::string& name, const BaseType & var) {
+        if (Local.empty()) Global.varRegister(name, var);
+        else Local.top().varRegister(name, var);
+    }
+
     virtual antlrcpp::Any visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) override {
 
         auto testlistArray = ctx->testlist();
@@ -113,13 +125,13 @@ public:
             string name; name.clear();
             for (int j = 0, k = 0, nameSize = varName.size(); j < nameSize; ++j) {
                 if (varName[j] == ',') {
-                    BaseType tmp = Stack.top().varQuery(name).second;
+                    BaseType tmp = read(name);
                     getAugassign(tmp, varData[k++], visitAugassign(ctx->augassign()).as<std::string>());
-                    Stack.top().varRegister(name, tmp);
+                    writea(name, tmp);
                     name.clear();
                 } else name += varName[j];
             }
-            return 0;
+            return BaseType(0, -1);
         }
 
         for (int i = 0; i < arraySize - 1; ++i) {
@@ -128,14 +140,16 @@ public:
             string name; name.clear();
             for (int j = 0, k = 0, nameSize = varName.size(); j < nameSize; ++j) {
                 if (varName[j] == ',') {
-                    Stack.top().varRegister(name, varData[k++]);
+                    write(name, varData[k++]);
                     name.clear();
                 } else name += varName[j];
             }
         }
 
-        if (arraySize > 1) return 0;
-        else return varData;
+
+        if (arraySize > 1) return BaseType(0, -1);
+        else if (varData.size() > 1) return varData;
+        else return varData[0];
     }
 
     virtual antlrcpp::Any visitAugassign(Python3Parser::AugassignContext *ctx) override {
@@ -143,22 +157,22 @@ public:
     }
 
     virtual antlrcpp::Any visitFlow_stmt(Python3Parser::Flow_stmtContext *ctx) override {
-        if (ctx->break_stmt()) return -1;
-        if (ctx->continue_stmt()) return -2;
-        if (ctx->return_stmt()) return visitReturn_stmt(ctx->return_stmt());
+        return visitChildren(ctx);
     }
 
     virtual antlrcpp::Any visitBreak_stmt(Python3Parser::Break_stmtContext *ctx) override {
-        return visitChildren(ctx);
+        return BaseType(0, -2);
     }
 
     virtual antlrcpp::Any visitContinue_stmt(Python3Parser::Continue_stmtContext *ctx) override {
-        return visitChildren(ctx);
+        return BaseType(0, -3);
     }
 
     virtual antlrcpp::Any visitReturn_stmt(Python3Parser::Return_stmtContext *ctx) override {
-        if (ctx->testlist()) return visitTestlist(ctx->testlist());
-        else return BaseType(bool(0));
+        if (ctx->testlist()) {
+            auto res = visitTestlist(ctx->testlist()).as<std::vector<BaseType> >();
+            if (res.size() == 1) return res[0];
+        } else return BaseType(0, -4);
     }
 
     virtual antlrcpp::Any visitCompound_stmt(Python3Parser::Compound_stmtContext *ctx) override {
@@ -170,33 +184,28 @@ public:
         auto suite = ctx->suite();
         auto testSize = test.size();
         for (int i = 0; i < testSize; ++i)
-            if ((bool) visitTest(test[i]).as<BaseType>()) {
-                auto tmp = visitSuite(suite[i]);
-                if (tmp.is<int>()) return tmp;
-                else if (tmp.is<std::vector<BaseType> >())
-                    return tmp;
-                else return tmp;
-            }
-        if (testSize != suite.size()) { 
-            auto tmp = visitSuite(suite[testSize]);
-            if (tmp.is<int>()) return tmp;
-            else if (tmp.is<std::vector<BaseType> >())
-                return tmp;
-            else return tmp;
-        }
-        return 0;
+            if ((bool) visitTest(test[i]).as<BaseType>())
+                return visitSuite(suite[i]);
+
+        if (testSize != suite.size())
+            return visitSuite(suite[testSize]);
+
+        return BaseType(0, -1);
     }
 
     virtual antlrcpp::Any visitWhile_stmt(Python3Parser::While_stmtContext *ctx) override {
-        while ((bool)visitTest(ctx->test()).as<BaseType>()) {
+        while ((bool) visitTest(ctx->test()).as<BaseType>()) {
             auto tmp = visitSuite(ctx->suite());
-            if (tmp.is<int>()) {
-                if (tmp.as<int>()) return tmp;
-            } else if (tmp.is<std::vector<BaseType> >())
-                return tmp;
-            else if (tmp.as<BaseType>() != BaseType()) return tmp;
+            if (tmp.is<BaseType>()) {
+                if (tmp.as<BaseType>().isVar())
+                    return tmp;
+                if (tmp.as<BaseType>().isBreak())
+                    break;
+                if (tmp.as<BaseType>().isReturn())
+                    return tmp;
+            } else return tmp;
         }
-        return 0;
+        return BaseType(0, -1);
     }
 
     virtual antlrcpp::Any visitSuite(Python3Parser::SuiteContext *ctx) override {
@@ -205,15 +214,20 @@ public:
         auto stmt = ctx->stmt();
         for (auto x : stmt) {
             auto tmp = visitStmt(x);
-            if (tmp.is<int>()) {
-                if (tmp.as<int>() == -1) return 1;
-                if (tmp.as<int>() == -2) return 0;
-            } else if (tmp.is<std::vector<BaseType>>())
-                return tmp;
-            else if (tmp.as<BaseType>() != BaseType()) 
-                return tmp;
+
+            if (tmp.is<BaseType>()) { 
+                if (tmp.as<BaseType>().isVar())
+                    return tmp;
+                if (tmp.as<BaseType>().isBreak())
+                    return tmp;
+                if (tmp.as<BaseType>().isContinue())
+                    return BaseType(0, -1);
+                if (tmp.as<BaseType>().isReturn())
+                    return tmp;
+            } else return tmp;
+
         }
-        return 0;
+        return BaseType(0, -1);
     }
 
     virtual antlrcpp::Any visitTest(Python3Parser::TestContext *ctx) override {
@@ -328,13 +342,21 @@ public:
             for (auto i : var)
                 i.second.print(' ');
             cout << endl;
-            return BaseType();
+            return BaseType(0, -1);
         } else if (functionName == "exit") {
             exit(0);
         } else if (functionName == "int") {
+            auto varData = var[0].second;
+            return BaseType((int2048)varData);
         } else if (functionName == "float") {
+            auto varData = var[0].second;
+            return BaseType((double)varData);
         } else if (functionName == "str") {
+            auto varData = var[0].second;
+            return BaseType((std::string)varData);
         } else if (functionName == "bool") {
+            auto varData = var[0].second;
+            return BaseType((bool)varData);
         } else {
             const Func &nowFunc = Function[functionName];
             Scope nowScope = nowFunc.scope;
@@ -344,20 +366,31 @@ public:
                     nowScope.varRegister(nowFunc.testlist[idx++], x.second);
                 else nowScope.varRegister(x.first, x.second);
             }
-            Stack.push(nowScope);
+            Local.push(nowScope);
             auto res = visitSuite(nowFunc.suite);
-            Stack.pop();
+            Local.pop();
 
 //            cout << functionName << endl;
 //            cout << res.is<BaseType>() << endl;
 //            cout << res.is<std::vector<BaseType>>() << endl;
-//            cout << res.is<int>() << endl;
 
-            if (res.is<std::vector<BaseType> >()) {
-                auto ret = res.as<std::vector<BaseType> >();
-                if (ret.size() == 1) return ret[0];
-                else return ret;
-            } else return BaseType(int2048(0));
+
+            if (res.is<BaseType>() && !res.as<BaseType>().isVar())
+                return BaseType(0, -1);
+            else return res;
+//            if (res.is<std::vector<BaseType> >()) {
+//                auto ret = res.as<std::vector<BaseType> >();
+//                if (ret.size() == 1) {
+//                    if (ret[0].isReturn())
+//                        return BaseType(0, -1);
+//                    else return ret[0];
+//                } else return ret;
+//            } else if (res.is<BaseType>()) {
+//                if (res.as<BaseType>().isReturn()) 
+//                    return BaseType(0, -1);
+//                return res;
+//            }
+//            else return BaseType(0, -1);
         }
     }
 
@@ -367,8 +400,7 @@ public:
 //             test '=' test );
 
     virtual antlrcpp::Any visitTrailer(Python3Parser::TrailerContext *ctx) override {
-        if (ctx->arglist())
-            return visitArglist(ctx->arglist());
+        if (ctx->arglist()) return visitArglist(ctx->arglist());
         return std::vector<std::pair<std::string, BaseType> >();
     }
 
@@ -378,7 +410,7 @@ public:
             if (number[i] == '.') idx = i;
         if (idx == -1) return std::make_pair(false, 0);
         double res = 0;
-        for (int i = idx - 1; i >= 0; --i)
+        for (int i = 0; i < idx; ++i)
             res = res * 10 + number[i] - '0';
 
         double tmp = 0.1;
@@ -397,8 +429,7 @@ public:
             if (tmp.first) return BaseType(tmp.second);
             return BaseType(int2048(number));
         } else if (ctx->NAME()) {
-            auto result = Stack.top().varQuery(ctx->NAME()->getText());
-            if (result.first) return result.second;
+            return read(ctx->NAME()->getText());
         } else if (ctx->test()) return visitTest(ctx->test());
         else if (ctx->TRUE()) return BaseType(true);
         else if (ctx->FALSE()) return BaseType(false);
@@ -409,8 +440,8 @@ public:
             res.clear();
             for (auto t : s) {
                 string tmp = t->getText();
-                for (int i = 1, sz = tmp.size(); i < sz - 1; ++i)
-                    res += tmp[i];
+                tmp.pop_back();
+                res += tmp.substr(1);
             }
                 
             return BaseType(res);
@@ -430,10 +461,6 @@ public:
                     varData.push_back(x);
             }
         }
-//        cout << " @ " << varData.size() << endl;
-//        for (auto x : varData)
-//            x.print('\n');
-//        cout << " # # # " << endl;
         return varData;
     } // testlist: test (',' test)* (',')?;
 
@@ -455,4 +482,3 @@ public:
 
 
 #endif //PYTHON_INTERPRETER_EVALVISITOR_H
-

@@ -74,8 +74,7 @@ public:
     }
 
     virtual antlrcpp::Any visitStmt(Python3Parser::StmtContext *ctx) override {
-        if (ctx->simple_stmt())
-            return visitSimple_stmt(ctx->simple_stmt());
+        if (ctx->simple_stmt()) return visitSimple_stmt(ctx->simple_stmt());
         else return visitCompound_stmt(ctx->compound_stmt());
     }
 
@@ -149,7 +148,8 @@ public:
 
 
         if (arraySize > 1) return BaseType(0, -1);
-        else return varData;
+        else if (varData.size() > 1) return varData;
+        else return varData[0];
     }
 
     virtual antlrcpp::Any visitAugassign(Python3Parser::AugassignContext *ctx) override {
@@ -157,22 +157,22 @@ public:
     }
 
     virtual antlrcpp::Any visitFlow_stmt(Python3Parser::Flow_stmtContext *ctx) override {
-        if (ctx->break_stmt()) return BaseType(0, -2);
-        if (ctx->continue_stmt()) return BaseType(0, -3);
-        if (ctx->return_stmt()) return visitReturn_stmt(ctx->return_stmt());
+        return visitChildren(ctx);
     }
 
     virtual antlrcpp::Any visitBreak_stmt(Python3Parser::Break_stmtContext *ctx) override {
-        return visitChildren(ctx);
+        return BaseType(0, -2);
     }
 
     virtual antlrcpp::Any visitContinue_stmt(Python3Parser::Continue_stmtContext *ctx) override {
-        return visitChildren(ctx);
+        return BaseType(0, -3);
     }
 
     virtual antlrcpp::Any visitReturn_stmt(Python3Parser::Return_stmtContext *ctx) override {
-        if (ctx->testlist()) return visitTestlist(ctx->testlist());
-        else return BaseType(0, -4);
+        if (ctx->testlist()) {
+            auto res = visitTestlist(ctx->testlist()).as<std::vector<BaseType> >();
+            if (res.size() == 1) return res[0];
+        } else return BaseType(0, -4);
     }
 
     virtual antlrcpp::Any visitCompound_stmt(Python3Parser::Compound_stmtContext *ctx) override {
@@ -197,10 +197,10 @@ public:
         while ((bool) visitTest(ctx->test()).as<BaseType>()) {
             auto tmp = visitSuite(ctx->suite());
             if (tmp.is<BaseType>()) {
-                if (tmp.as<BaseType>().isBreak())
-                    break;
                 if (tmp.as<BaseType>().isVar())
                     return tmp;
+                if (tmp.as<BaseType>().isBreak())
+                    break;
                 if (tmp.as<BaseType>().isReturn())
                     return tmp;
             } else return tmp;
@@ -209,59 +209,22 @@ public:
     }
 
     virtual antlrcpp::Any visitSuite(Python3Parser::SuiteContext *ctx) override {
-        if (ctx->simple_stmt()) {
-            auto tmp = visitSimple_stmt(ctx->simple_stmt());
-            if (tmp.is<BaseType>()) {
-                if (tmp.as<BaseType>().isBreak())
-                    return BaseType(0, -2);
-                if (tmp.as<BaseType>().isContinue())
-                    return BaseType(0, -1);
-                if (tmp.as<BaseType>().isVar())
-                    return tmp;
-                if (tmp.as<BaseType>().isReturn())
-                    return BaseType(0, -4);
-            } else {
-                assert(tmp.is<std::vector<BaseType> >());
-                auto res = tmp.as<std::vector<BaseType> >();
-                if (res.size() == 1) {
-                    if (res[0].isBreak())
-                        return BaseType(0, -2);
-                    if (res[0].isContinue())
-                        return BaseType(0, -1);
-                    if (res[0].isVar())
-                        return res[0];
-                    if (res[0].isReturn())
-                        return BaseType(0, -4);
-                } else return res;
-            }
-            return BaseType(0, -1);
-        }
+        if (ctx->simple_stmt())
+            return visitSimple_stmt(ctx->simple_stmt());
         auto stmt = ctx->stmt();
         for (auto x : stmt) {
             auto tmp = visitStmt(x);
 
-            if (tmp.is<BaseType>()) {
-                if (tmp.as<BaseType>().isBreak())
-                    return BaseType(0, -2);
-                if (tmp.as<BaseType>().isContinue())
-                    return BaseType(0, -1);
+            if (tmp.is<BaseType>()) { 
                 if (tmp.as<BaseType>().isVar())
                     return tmp;
+                if (tmp.as<BaseType>().isBreak())
+                    return tmp;
+                if (tmp.as<BaseType>().isContinue())
+                    return BaseType(0, -1);
                 if (tmp.as<BaseType>().isReturn())
-                    return BaseType(0, -4);
-            } else {
-                auto res = tmp.as<std::vector<BaseType> >();
-                if (res.size() == 1) {
-                    if (res[0].isBreak())
-                        return BaseType(0, -2);
-                    if (res[0].isContinue())
-                        return BaseType(0, -1);
-                    if (res[0].isVar())
-                        return res[0];
-                    if (res[0].isReturn())
-                        return BaseType(0, -4);
-                } else return res;
-            }
+                    return tmp;
+            } else return tmp;
 
         }
         return BaseType(0, -1);
@@ -412,19 +375,22 @@ public:
 //            cout << res.is<std::vector<BaseType>>() << endl;
 
 
-            if (res.is<std::vector<BaseType> >()) {
-                auto ret = res.as<std::vector<BaseType> >();
-                if (ret.size() == 1) {
-                    if (ret[0].isReturn())
-                        return BaseType(0, -1);
-                    else return ret[0];
-                } else return ret;
-            } else if (res.is<BaseType>()) {
-                if (res.as<BaseType>().isReturn()) 
-                    return BaseType(0, -1);
-                return res;
-            }
-            else return BaseType(0, -1);
+            if (res.is<BaseType>() && !res.as<BaseType>().isVar())
+                return BaseType(0, -1);
+            else return res;
+//            if (res.is<std::vector<BaseType> >()) {
+//                auto ret = res.as<std::vector<BaseType> >();
+//                if (ret.size() == 1) {
+//                    if (ret[0].isReturn())
+//                        return BaseType(0, -1);
+//                    else return ret[0];
+//                } else return ret;
+//            } else if (res.is<BaseType>()) {
+//                if (res.as<BaseType>().isReturn()) 
+//                    return BaseType(0, -1);
+//                return res;
+//            }
+//            else return BaseType(0, -1);
         }
     }
 
@@ -474,8 +440,8 @@ public:
             res.clear();
             for (auto t : s) {
                 string tmp = t->getText();
-                for (int i = 1, sz = tmp.size(); i < sz - 1; ++i)
-                    res += tmp[i];
+                tmp.pop_back();
+                res += tmp.substr(1);
             }
                 
             return BaseType(res);
