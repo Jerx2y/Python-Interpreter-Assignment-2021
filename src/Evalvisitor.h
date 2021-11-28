@@ -87,13 +87,13 @@ public:
         else return visitExpr_stmt(ctx->expr_stmt());
     }
 
-    void getAugassign(BaseType &lhs, const BaseType &rhs, const std::string &opt) {
-        if (opt == "+=") lhs = lhs + rhs;
-        if (opt == "-=") lhs = lhs - rhs;
-        if (opt == "*=") lhs = mul(lhs, rhs);
-        if (opt == "/=") lhs = ddiv(lhs, rhs);
-        if (opt == "//=") lhs = idiv(lhs, rhs);
-        if (opt == "%=") lhs = mod(lhs, rhs);
+    void getAugassign(BaseType &lhs, const BaseType &rhs, const int &opt) {
+        if (opt == 1) lhs = lhs + rhs;
+        if (opt == 2) lhs = lhs - rhs;
+        if (opt == 3) lhs = mul(lhs, rhs);
+        if (opt == 4) lhs = ddiv(lhs, rhs);
+        if (opt == 5) lhs = idiv(lhs, rhs);
+        if (opt == 6) lhs = mod(lhs, rhs);
     }
 
     BaseType read(const std::string &name) {
@@ -102,14 +102,10 @@ public:
         return Local.top().varQuery(name).second;
     }
 
-    void writea(const std::string& name, const BaseType & var) {
-        if (Local.empty() || !Local.top().varQuery(name).first) {
-            Global.varRegister(name, var);
-        } else Local.top().varRegister(name, var);
-    }
-
     void write(const std::string& name, const BaseType & var) {
         if (Local.empty()) Global.varRegister(name, var);
+        else if (Local.top().varQuery(name).first)  Local.top().varRegister(name, var);
+        else if (Global.varQuery(name).first) Global.varRegister(name, var); 
         else Local.top().varRegister(name, var);
     }
 
@@ -126,8 +122,8 @@ public:
             for (int j = 0, k = 0, nameSize = varName.size(); j < nameSize; ++j) {
                 if (varName[j] == ',') {
                     BaseType tmp = read(name);
-                    getAugassign(tmp, varData[k++], visitAugassign(ctx->augassign()).as<std::string>());
-                    writea(name, tmp);
+                    getAugassign(tmp, varData[k++], visitAugassign(ctx->augassign()).as<int>());
+                    write(name, tmp);
                     name.clear();
                 } else name += varName[j];
             }
@@ -153,7 +149,13 @@ public:
     }
 
     virtual antlrcpp::Any visitAugassign(Python3Parser::AugassignContext *ctx) override {
-        return ctx->getText();
+        if (ctx->ADD_ASSIGN()) return 1;
+        if (ctx->SUB_ASSIGN()) return 2;
+        if (ctx->MULT_ASSIGN()) return 3;
+        if (ctx->DIV_ASSIGN()) return 4;
+        if (ctx->IDIV_ASSIGN()) return 5;
+        if (ctx->MOD_ASSIGN()) return 6;
+        assert(0);
     }
 
     virtual antlrcpp::Any visitFlow_stmt(Python3Parser::Flow_stmtContext *ctx) override {
@@ -260,13 +262,13 @@ public:
         else return visitComparison(ctx->comparison());
     }
 
-    bool mycmp(const BaseType &lhs, const BaseType &rhs, const string &opt) {
-        if (opt == "<") return lhs < rhs;
-        if (opt == ">") return lhs > rhs;
-        if (opt == "==") return lhs == rhs;
-        if (opt == ">=") return lhs >= rhs;
-        if (opt == "<=") return lhs <= rhs;
-        if (opt == "!=") return lhs != rhs;
+    bool mycmp(const BaseType &lhs, const BaseType &rhs, const int &opt) {
+        if (opt == 1) return lhs < rhs;
+        if (opt == 2) return lhs > rhs;
+        if (opt == 3) return lhs == rhs;
+        if (opt == 4) return lhs >= rhs;
+        if (opt == 5) return lhs <= rhs;
+        if (opt == 6) return lhs != rhs;
         // '<'|'>'|'=='|'>='|'<=' | '!='
     }
 
@@ -278,7 +280,7 @@ public:
         auto opt = ctx->comp_op();
         for (int i = 1; i < szv; ++i) {
             auto now = visitArith_expr(vec[i]);
-            if (!mycmp(last.as<BaseType>(), now.as<BaseType>(), visitComp_op(opt[i - 1]).as<string>()))
+            if (!mycmp(last.as<BaseType>(), now.as<BaseType>(), visitComp_op(opt[i - 1]).as<int>()))
                 return BaseType(false);
             last = now;
         }
@@ -286,7 +288,13 @@ public:
     }
 
     virtual antlrcpp::Any visitComp_op(Python3Parser::Comp_opContext *ctx) override {
-        return ctx->getText();
+        if (ctx->LESS_THAN()) return 1;
+        if (ctx->GREATER_THAN()) return 2;
+        if (ctx->EQUALS()) return 3;
+        if (ctx->GT_EQ()) return 4;
+        if (ctx->LT_EQ()) return 5;
+        if (ctx->NOT_EQ_2()) return 6;
+        assert(0);
     }
 
     virtual antlrcpp::Any visitArith_expr(Python3Parser::Arith_exprContext *ctx) override {
@@ -304,7 +312,7 @@ public:
     }
 
     virtual antlrcpp::Any visitAddorsub_op(Python3Parser::Addorsub_opContext *ctx) override {
-        return bool(ctx->getText() == "+");
+        return (bool)ctx->ADD();
     }
 
     virtual antlrcpp::Any visitTerm(Python3Parser::TermContext *ctx) override {
@@ -314,23 +322,27 @@ public:
         BaseType res = visitFactor(f[0]).as<BaseType>();
         auto o = ctx->muldivmod_op();
         for (int i = 1; i < szf; ++i) {
-            string opt = visitMuldivmod_op(o[i - 1]).as<string>();
-            if (opt == "*") res = mul(res, visitFactor(f[i]).as<BaseType>());
-            if (opt == "/") res = ddiv(res, visitFactor(f[i]).as<BaseType>());
-            if (opt == "//") res = idiv(res, visitFactor(f[i]).as<BaseType>());
-            if (opt == "%") res = mod(res, visitFactor(f[i]).as<BaseType>());
+            int opt = visitMuldivmod_op(o[i - 1]).as<int>();
+            if (opt == 1) res = mul(res, visitFactor(f[i]).as<BaseType>());
+            if (opt == 2) res = ddiv(res, visitFactor(f[i]).as<BaseType>());
+            if (opt == 3) res = idiv(res, visitFactor(f[i]).as<BaseType>());
+            if (opt == 4) res = mod(res, visitFactor(f[i]).as<BaseType>());
         }
         return res;
     }
 
     virtual antlrcpp::Any visitMuldivmod_op(Python3Parser::Muldivmod_opContext *ctx) override {
-        return ctx->getText();
+        if (ctx->DIV()) return 2;
+        if (ctx->IDIV()) return 3;
+        if (ctx->MOD()) return 4;
+        return 1;
     }
 
     virtual antlrcpp::Any visitFactor(Python3Parser::FactorContext *ctx) override {
         auto atomExpr = ctx->atom_expr();
         if (atomExpr) return visitAtom_expr(atomExpr);
-        if (ctx->getText() == "+") return visitFactor(ctx->factor());
+
+        if (ctx->ADD()) return visitFactor(ctx->factor());
         else return BaseType(-visitFactor(ctx->factor()).as<BaseType>());
     }
 
@@ -371,34 +383,11 @@ public:
             auto res = visitSuite(nowFunc.suite);
             Local.pop();
 
-//            cout << functionName << endl;
-//            cout << res.is<BaseType>() << endl;
-//            cout << res.is<std::vector<BaseType>>() << endl;
-
-
             if (res.is<BaseType>() && !res.as<BaseType>().isVar())
                 return BaseType(0, -1);
             else return res;
-//            if (res.is<std::vector<BaseType> >()) {
-//                auto ret = res.as<std::vector<BaseType> >();
-//                if (ret.size() == 1) {
-//                    if (ret[0].isReturn())
-//                        return BaseType(0, -1);
-//                    else return ret[0];
-//                } else return ret;
-//            } else if (res.is<BaseType>()) {
-//                if (res.as<BaseType>().isReturn()) 
-//                    return BaseType(0, -1);
-//                return res;
-//            }
-//            else return BaseType(0, -1);
         }
     }
-
-// trailer: '(' (arglist)? ')' ;
-// arglist: argument (',' argument)*  (',')?;
-// argument: ( test |
-//             test '=' test );
 
     virtual antlrcpp::Any visitTrailer(Python3Parser::TrailerContext *ctx) override {
         if (ctx->arglist()) return visitArglist(ctx->arglist());
@@ -474,12 +463,11 @@ public:
     } // arglist: argument (',' argument)*  (',')?;
 
     virtual antlrcpp::Any visitArgument(Python3Parser::ArgumentContext *ctx) override {
-        auto test = ctx->test();
-        if (test.size() == 1)
-            return std::make_pair(std::string(), visitTest(test[0]).as<BaseType>());
-        return std::make_pair(test[0]->getText(), visitTest(test[1]).as<BaseType>());
+        if (!ctx->ASSIGN()) return std::make_pair(std::string(), visitTest(ctx->test()[0]).as<BaseType>());
+        else return std::make_pair(ctx->test()[0]->getText(), visitTest(ctx->test()[1]).as<BaseType>());
     } // argument: ( test | test '=' test );
 };
 
 
 #endif //PYTHON_INTERPRETER_EVALVISITOR_H
+

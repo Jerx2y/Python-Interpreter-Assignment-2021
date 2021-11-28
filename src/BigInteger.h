@@ -151,31 +151,31 @@ public:
         return res;
     }
 
-//    friend int2048 operator*(const int2048 &lhs, long long rhs) {
-//        if (rhs >= base || rhs <= -base) {
-//            int2048 tmp(rhs);
-//            return tmp * lhs;
-//        }
-//
-//        int2048 res;
-//        res.opt = lhs.opt ^ (rhs < 0);
-//        if (rhs < 0) rhs = -rhs;
-//
-//        res.d.resize(lhs.d.size() + 1);
-//        for (int i = res.d.size() - 1; i >= 0; --i)
-//            res.d[i] = 0;
-//        for (int i = 0, szi = lhs.d.size(); i < szi; ++i) {
-//            res.d[i] += lhs.d[i] * rhs;
-//            if (res.d[i] >= base) {
-//                res.d[i + 1] += res.d[i] / base;
-//                res.d[i] %= base;
-//            }
-//        }
-//
-//        while (!res.d.empty() && !res.d.back()) res.d.pop_back(); 
-//
-//        return res;
-//    }
+    friend int2048 operator*(const int2048 &lhs, long long rhs) {
+        if (rhs >= base || rhs <= -base) {
+            int2048 tmp(rhs);
+            return tmp * lhs;
+        }
+
+        int2048 res;
+        res.opt = lhs.opt ^ (rhs < 0);
+        if (rhs < 0) rhs = -rhs;
+
+        res.d.resize(lhs.d.size() + 1);
+        for (int i = res.d.size() - 1; i >= 0; --i)
+            res.d[i] = 0;
+        for (int i = 0, szi = lhs.d.size(); i < szi; ++i) {
+            res.d[i] += lhs.d[i] * rhs;
+            if (res.d[i] >= base) {
+                res.d[i + 1] += res.d[i] / base;
+                res.d[i] %= base;
+            }
+        }
+
+        while (!res.d.empty() && !res.d.back()) res.d.pop_back(); 
+
+        return res;
+    }
 
     int2048 &operator*=(const int2048 &rhs) {
         *this = *this * rhs;
@@ -206,6 +206,8 @@ public:
                 l = (1ll * rem.d.back() * base + rem.d[rem.d.size() - 2]) / rhs_l;
                 r = (1ll * rem.d.back() * base + rem.d[rem.d.size() - 2] + 1) / rhs_r;
             }
+            if (l < 1) l = 1;
+            if (r >= base) r = base - 1;
             while (l < r) {
                 int mid = (l + r + 1) >> 1;
                 if (rhs * int2048(mid) <= rem) 
