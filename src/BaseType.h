@@ -79,8 +79,8 @@ public:
         if (t <= 2) return BaseType((int2048) lhs * (int2048) rhs);
         if (t == 3) return BaseType((double) lhs * (double) rhs);
         if (t == 4) {
-            int k = (int) rhs.i;
-            string t = lhs.s;
+            int k = lhs.t == 4 ? (int) rhs.i : (int) lhs.i;
+            string t = lhs.t == 4 ? lhs.s : rhs.s;
             string res;
             res.clear();
             while (k) {
