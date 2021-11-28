@@ -130,7 +130,7 @@ public:
             return BaseType(0, -1);
         }
 
-        for (int i = 0; i < arraySize - 1; ++i) {
+        for (int i = arraySize - 2; i >= 0; --i) {
             auto varName = testlistArray[i]->getText();
             varName += ',';
             string name; name.clear();
