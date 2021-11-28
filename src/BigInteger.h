@@ -273,13 +273,13 @@ public:
         rhs.print();
         return lhs;
     }
-    operator bool() {
+    explicit operator bool() const {
         return !d.empty();
     }
-    operator int() const {
-        return d.size() ? d[0] : 0;
+    explicit operator int() const {
+        return d.size() ? (opt ? -d[0] : d[0]) : 0;
     }
-    operator double() {
+    explicit operator double() const {
         double res = 0;
         for (auto x : d)
             res = res * base + x;
