@@ -283,6 +283,7 @@ public:
         double res = 0;
         for (auto x : d)
             res = res * base + x;
+        if (opt) res = -res;
         return res;
     }
 };

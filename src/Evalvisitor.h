@@ -359,17 +359,13 @@ public:
         } else if (functionName == "exit") {
             exit(0);
         } else if (functionName == "int") {
-            auto varData = var[0].second;
-            return BaseType((int2048)varData);
+            return BaseType((int2048)var[0].second);
         } else if (functionName == "float") {
-            auto varData = var[0].second;
-            return BaseType((double)varData);
+            return BaseType((double)var[0].second);
         } else if (functionName == "str") {
-            auto varData = var[0].second;
-            return BaseType((std::string)varData);
+            return BaseType((std::string)var[0].second);
         } else if (functionName == "bool") {
-            auto varData = var[0].second;
-            return BaseType((bool)varData);
+            return BaseType((bool)var[0].second);
         } else {
             const Func &nowFunc = Function[functionName];
             Scope nowScope = nowFunc.scope;
@@ -400,7 +396,7 @@ public:
             if (number[i] == '.') idx = i;
         if (idx == -1) return std::make_pair(false, 0);
         double res = 0;
-        for (int i = 0; i < idx; ++i)
+        for (int i = (number[0] == '-'); i < idx; ++i)
             res = res * 10 + number[i] - '0';
 
         double tmp = 0.1;
@@ -409,6 +405,7 @@ public:
             tmp /= 10.0;
         }
 
+        if (number[0] == '-') res = -res;
         return std::make_pair(true, res);
     }
 

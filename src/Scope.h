@@ -20,7 +20,7 @@ class Scope {
         }    
 
         std::pair<bool, BaseType> varQuery(const std::string& varName) const {
-            auto it = varTable.find(varName);
+            const auto &it = varTable.find(varName);
             if (it == varTable.end()) return std::make_pair(false, BaseType());
             return std::make_pair(true, it->second);
         }

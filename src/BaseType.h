@@ -5,13 +5,15 @@
 #include <iostream>
 #include "BigInteger.h"
 using std::string;
+using std::cout;
+using std::endl;
 
 inline int max(const int &a, const int &b) {
     return a < b ? b : a;
 }
 
 class BaseType{
-private:
+public:
     int t;
     bool b;
     int2048 i;
