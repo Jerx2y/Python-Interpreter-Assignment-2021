@@ -59,26 +59,24 @@ public:
         return s;
     }
     BaseType operator-() {
+        if (t == 1) return BaseType((int2048)(-b));
         if (t == 2) return BaseType(-i);
         if (t == 3) return BaseType(-d);
     }
     friend BaseType operator+(const BaseType &lhs, const BaseType &rhs) {
         int t = max(lhs.t, rhs.t);
-        if (t == 1) return BaseType(bool((int2048) lhs + (int2048) rhs));
-        if (t == 2) return BaseType((int2048) lhs + (int2048) rhs);
+        if (t <= 2) return BaseType((int2048) lhs + (int2048) rhs);
         if (t == 3) return BaseType((double) lhs + (double) rhs);
         if (t == 4) return BaseType((string) lhs + (string) rhs);
     }
     friend BaseType operator-(const BaseType &lhs, const BaseType &rhs) {
         int t = max(lhs.t, rhs.t);
-        if (t == 1) return BaseType(bool((int2048) lhs - (int2048) rhs));
-        if (t == 2) return BaseType((int2048) lhs - (int2048) rhs);
+        if (t <= 2) return BaseType((int2048) lhs - (int2048) rhs);
         if (t == 3) return BaseType((double) lhs - (double) rhs);
     }
     friend BaseType mul(const BaseType &lhs, const BaseType &rhs) {
         int t = max(lhs.t, rhs.t);
-        if (t == 1) return BaseType(bool((bool) lhs * (bool) rhs));
-        if (t == 2) return BaseType((int2048) lhs * (int2048) rhs);
+        if (t <= 2) return BaseType((int2048) lhs * (int2048) rhs);
         if (t == 3) return BaseType((double) lhs * (double) rhs);
         if (t == 4) {
             int k = (int) rhs.i;
