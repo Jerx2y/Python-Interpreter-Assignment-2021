@@ -4,6 +4,7 @@
 #include <string>
 #include <iostream>
 #include "BigInteger.h"
+#include <iomanip>
 using std::string;
 using std::cout;
 using std::endl;
@@ -26,11 +27,12 @@ public:
     BaseType(double _d) { t = 3, d = _d; }
     BaseType(string _s) { t = 4, s = _s; }
     BaseType(int err, int _t) { t = _t; }
-    bool isBreak() { return t == -2; }
     bool isVar() { return t > 0; }
+    bool isBreak() { return t == -2; }
     bool isContinue() { return t == -3; }
     bool isReturn() { return t == -4; }
     explicit operator bool() const {
+        if (t == 0) return false;
         if (t == 1) return b;
         if (t == 2) return (bool) i;
         if (t == 3) return (bool) d;
@@ -116,11 +118,10 @@ public:
     friend bool operator==(const BaseType &lhs, const BaseType &rhs) { return lhs <= rhs && rhs <= lhs; }
     friend bool operator!=(const BaseType &lhs, const BaseType &rhs) { return lhs < rhs || rhs < lhs; }
     void print(char ch = 0) {
-        if (t < 0) std::cout << " ERR ! " << t;
-        if (t == 0) printf("None");
-        if (t == 1) printf(b ? "True" : "False");
+        if (t == 0) std::cout << "None";
+        if (t == 1) std::cout << (b ? "True" : "False");
         if (t == 2) std::cout << i;
-        if (t == 3) printf("%.6lf", d);
+        if (t == 3) std::cout << std::setprecision(6) << d;
         if (t == 4) std::cout << s;
         if (ch) putchar(ch);
     }

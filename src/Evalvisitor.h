@@ -33,6 +33,19 @@ public:
     Scope Global;
     std::unordered_map<std::string, Func> Function;
 
+    BaseType read(const std::string &name) {
+        if (Local.empty() || !Local.top().varQuery(name).first)
+            return Global.varQuery(name).second;
+        return Local.top().varQuery(name).second;
+    }
+
+    void write(const std::string& name, const BaseType & var) {
+        if (Local.empty()) Global.varRegister(name, var);
+        else if (Local.top().varQuery(name).first)  Local.top().varRegister(name, var);
+        else if (Global.varQuery(name).first) Global.varRegister(name, var); 
+        else Local.top().varRegister(name, var);
+    }
+
     virtual antlrcpp::Any visitFile_input(Python3Parser::File_inputContext *ctx) override {
         return visitChildren(ctx);
     }
@@ -85,28 +98,6 @@ public:
     virtual antlrcpp::Any visitSmall_stmt(Python3Parser::Small_stmtContext *ctx) override {
         if (ctx->flow_stmt()) return visitFlow_stmt(ctx->flow_stmt());
         else return visitExpr_stmt(ctx->expr_stmt());
-    }
-
-    void getAugassign(BaseType &lhs, const BaseType &rhs, const int &opt) {
-        if (opt == 1) lhs = lhs + rhs;
-        if (opt == 2) lhs = lhs - rhs;
-        if (opt == 3) lhs = mul(lhs, rhs);
-        if (opt == 4) lhs = ddiv(lhs, rhs);
-        if (opt == 5) lhs = idiv(lhs, rhs);
-        if (opt == 6) lhs = mod(lhs, rhs);
-    }
-
-    BaseType read(const std::string &name) {
-        if (Local.empty() || !Local.top().varQuery(name).first)
-            return Global.varQuery(name).second;
-        return Local.top().varQuery(name).second;
-    }
-
-    void write(const std::string& name, const BaseType & var) {
-        if (Local.empty()) Global.varRegister(name, var);
-        else if (Local.top().varQuery(name).first)  Local.top().varRegister(name, var);
-        else if (Global.varQuery(name).first) Global.varRegister(name, var); 
-        else Local.top().varRegister(name, var);
     }
 
     virtual antlrcpp::Any visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) override {
@@ -262,16 +253,6 @@ public:
         else return visitComparison(ctx->comparison());
     }
 
-    bool mycmp(const BaseType &lhs, const BaseType &rhs, const int &opt) {
-        if (opt == 1) return lhs < rhs;
-        if (opt == 2) return lhs > rhs;
-        if (opt == 3) return lhs == rhs;
-        if (opt == 4) return lhs >= rhs;
-        if (opt == 5) return lhs <= rhs;
-        if (opt == 6) return lhs != rhs;
-        // '<'|'>'|'=='|'>='|'<=' | '!='
-    }
-
     virtual antlrcpp::Any visitComparison(Python3Parser::ComparisonContext *ctx) override {
         auto vec = ctx->arith_expr();
         auto last = visitArith_expr(vec[0]);
@@ -390,25 +371,6 @@ public:
         return std::vector<std::pair<std::string, BaseType> >();
     }
 
-    std::pair<bool, double> stringToDouble(const string &number) { // TODO: Utils.h
-        int idx = -1, sz = number.size();
-        for (int i = 0; i < sz; ++i)
-            if (number[i] == '.') idx = i;
-        if (idx == -1) return std::make_pair(false, 0);
-        double res = 0;
-        for (int i = (number[0] == '-'); i < idx; ++i)
-            res = res * 10 + number[i] - '0';
-
-        double tmp = 0.1;
-        for (int i = idx + 1; i < sz; ++i) {
-            res += tmp * (number[i] - '0');
-            tmp /= 10.0;
-        }
-
-        if (number[0] == '-') res = -res;
-        return std::make_pair(true, res);
-    }
-
     virtual antlrcpp::Any visitAtom(Python3Parser::AtomContext *ctx) override {
         if (ctx->NUMBER()) {
             std::string number = ctx->NUMBER()->getText();
@@ -460,6 +422,7 @@ public:
     } // arglist: argument (',' argument)*  (',')?;
 
     virtual antlrcpp::Any visitArgument(Python3Parser::ArgumentContext *ctx) override {
+        // TODO: Test may be a testlist !
         if (!ctx->ASSIGN()) return std::make_pair(std::string(), visitTest(ctx->test()[0]).as<BaseType>());
         else return std::make_pair(ctx->test()[0]->getText(), visitTest(ctx->test()[1]).as<BaseType>());
     } // argument: ( test | test '=' test );
