@@ -88,8 +88,6 @@ public:
     }
 
     static int2048 add(int2048 lhs, const int2048 &rhs) {
-        lhs.d.back()++;
-        return lhs;
         if (lhs.opt ^ rhs.opt)
             return !lhs.opt ? minus(lhs, -rhs) : minus(rhs, -lhs);
         int len = std::max(lhs.d.size(), rhs.d.size()) + 1;
