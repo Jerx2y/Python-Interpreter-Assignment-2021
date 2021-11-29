@@ -32,7 +32,6 @@ public:
     bool isContinue() { return t == -3; }
     bool isReturn() { return t == -4; }
     explicit operator bool() const {
-        if (t == 0) return false;
         if (t == 1) return b;
         if (t == 2) return (bool) i;
         if (t == 3) return (bool) d;
