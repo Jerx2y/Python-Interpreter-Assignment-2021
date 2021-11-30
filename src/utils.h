@@ -13,7 +13,6 @@ static bool validateVarName(const std::string& str) {
     return true;
 }
 
-
 static void getAugassign(BaseType &lhs, const BaseType &rhs, const int &opt) {
     if (opt == 1) lhs = lhs + rhs;
     if (opt == 2) lhs = lhs - rhs;
@@ -22,6 +21,7 @@ static void getAugassign(BaseType &lhs, const BaseType &rhs, const int &opt) {
     if (opt == 5) lhs = idiv(lhs, rhs);
     if (opt == 6) lhs = mod(lhs, rhs);
 }
+
 
 static bool mycmp(const BaseType &lhs, const BaseType &rhs, const int &opt) {
     if (opt == 1) return lhs < rhs;

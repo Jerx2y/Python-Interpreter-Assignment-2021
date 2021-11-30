@@ -33,19 +33,6 @@ public:
     Scope Global;
     std::unordered_map<std::string, Func> Function;
 
-    BaseType read(const std::string &name) {
-        if (Local.empty() || !Local.top().varQuery(name).first)
-            return Global.varQuery(name).second;
-        return Local.top().varQuery(name).second;
-    }
-
-    void write(const std::string& name, const BaseType & var) {
-        if (Local.empty()) Global.varRegister(name, var);
-        else if (Local.top().varQuery(name).first)  Local.top().varRegister(name, var);
-        else if (Global.varQuery(name).first) Global.varRegister(name, var); 
-        else Local.top().varRegister(name, var);
-    }
-
     virtual antlrcpp::Any visitFile_input(Python3Parser::File_inputContext *ctx) override {
         return visitChildren(ctx);
     }
@@ -98,6 +85,19 @@ public:
     virtual antlrcpp::Any visitSmall_stmt(Python3Parser::Small_stmtContext *ctx) override {
         if (ctx->flow_stmt()) return visitFlow_stmt(ctx->flow_stmt());
         else return visitExpr_stmt(ctx->expr_stmt());
+    }
+
+    BaseType read(const std::string &name) {
+        if (Local.empty() || !Local.top().varQuery(name).first)
+            return Global.varQuery(name).second;
+        return Local.top().varQuery(name).second;
+    }
+
+    void write(const std::string& name, const BaseType & var) {
+        if (Local.empty()) Global.varRegister(name, var);
+        else if (Local.top().varQuery(name).first)  Local.top().varRegister(name, var);
+        else if (Global.varQuery(name).first) Global.varRegister(name, var); 
+        else Local.top().varRegister(name, var);
     }
 
     virtual antlrcpp::Any visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) override {
@@ -422,7 +422,6 @@ public:
     } // arglist: argument (',' argument)*  (',')?;
 
     virtual antlrcpp::Any visitArgument(Python3Parser::ArgumentContext *ctx) override {
-        // TODO: Test may be a testlist !
         if (!ctx->ASSIGN()) return std::make_pair(std::string(), visitTest(ctx->test()[0]).as<BaseType>());
         else return std::make_pair(ctx->test()[0]->getText(), visitTest(ctx->test()[1]).as<BaseType>());
     } // argument: ( test | test '=' test );
@@ -430,4 +429,3 @@ public:
 
 
 #endif //PYTHON_INTERPRETER_EVALVISITOR_H
-

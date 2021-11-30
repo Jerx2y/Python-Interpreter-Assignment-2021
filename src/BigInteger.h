@@ -100,7 +100,6 @@ public:
             }
         }
         while (!lhs.d.empty() && !lhs.d.back()) lhs.d.pop_back();
-        if (lhs.d.empty()) lhs.opt = 0;
         return lhs;
     }
     int2048 &add(const int2048 &rhs) {
@@ -122,7 +121,6 @@ public:
         }
         while (!lhs.d.empty() && !lhs.d.back())
             lhs.d.pop_back();
-        if (lhs.d.empty()) lhs.opt = 0;
         return lhs;
     }
     int2048 &minus(const int2048 &rhs) {
@@ -150,7 +148,6 @@ public:
             }
         while (!res.d.empty() && !res.d.back())
             res.d.pop_back();
-        if (res.d.empty()) res.opt = 0;
         return res;
     }
 
@@ -177,7 +174,6 @@ public:
 
         while (!res.d.empty() && !res.d.back()) res.d.pop_back(); 
 
-        if (res.d.empty()) res.opt = 0;
         return res;
     }
 
@@ -214,16 +210,15 @@ public:
             if (r >= base) r = base - 1;
             while (l < r) {
                 int mid = (l + r + 1) >> 1;
-                if (rhs * mid <= rem) 
+                if (rhs * int2048(mid) <= rem) 
                     l = mid;
                 else r = mid - 1;
             }
             res.d.push_back(l);
-            rem -= rhs * l;
+            rem -= rhs * int2048(l);
         }
         std::reverse(res.d.begin(), res.d.end());
         while (!res.d.empty() && !res.d.back()) res.d.pop_back();
-
     }
     friend int2048 operator/(const int2048 &lhs, const int2048 &rhs) {
         int2048 rem, res;
